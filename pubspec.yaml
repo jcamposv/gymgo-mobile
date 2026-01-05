@@ -1,0 +1,53 @@
+name: gymgo_mobile
+description: GymGo - Tu gimnasio en tu bolsillo
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Supabase
+  supabase_flutter: ^2.8.4
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Navigation
+  go_router: ^14.6.2
+
+  # UI
+  flutter_svg: ^2.0.16
+  cached_network_image: ^3.4.1
+  shimmer: ^3.0.0
+  flutter_animate: ^4.5.2
+
+  # Forms & Validation (updated versions)
+  flutter_form_builder: ^10.2.0
+  form_builder_validators: ^11.0.0
+
+  # Utils
+  shared_preferences: ^2.3.4
+  flutter_secure_storage: ^9.2.2
+  connectivity_plus: ^6.1.1
+
+  # Icons
+  lucide_icons: ^0.257.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.14
+  riverpod_generator: ^2.6.2
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/
+    - assets/icons/

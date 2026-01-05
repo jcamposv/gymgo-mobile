@@ -1,0 +1,165 @@
+import 'dart:async';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
+import '../../data/auth_repository.dart';
+import '../../domain/auth_exception.dart';
+import '../../domain/auth_state.dart' as app;
+
+/// Provider for the AuthRepository
+final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  return AuthRepository();
+});
+
+/// Main auth state notifier
+class AuthNotifier extends StateNotifier<app.AuthState> {
+  AuthNotifier(this._repository) : super(const app.AuthInitial()) {
+    _initialize();
+  }
+
+  final AuthRepository _repository;
+  StreamSubscription<supabase.AuthState>? _authSubscription;
+
+  void _initialize() {
+    // Check if already authenticated
+    if (_repository.isAuthenticated) {
+      final session = _repository.currentSession!;
+      final user = _repository.currentUser!;
+      state = app.Authenticated(user: user, session: session);
+    } else {
+      state = const app.Unauthenticated();
+    }
+
+    // Listen to auth state changes
+    _authSubscription = _repository.authStateChanges.listen((event) {
+      if (event.session != null && event.session!.user != null) {
+        state = app.Authenticated(
+          user: event.session!.user,
+          session: event.session!,
+        );
+      } else {
+        state = const app.Unauthenticated();
+      }
+    });
+  }
+
+  /// Sign in with email and password
+  Future<void> signIn({
+    required String email,
+    required String password,
+  }) async {
+    state = const app.AuthLoading();
+
+    try {
+      final response = await _repository.signInWithEmail(
+        email: email,
+        password: password,
+      );
+
+      if (response.session != null && response.user != null) {
+        state = app.Authenticated(
+          user: response.user!,
+          session: response.session!,
+        );
+      } else {
+        state = const app.AuthError(
+          message: 'No se pudo iniciar sesión. Intenta de nuevo.',
+        );
+      }
+    } on GymGoAuthException catch (e) {
+      state = app.AuthError(message: e.message, code: e.code);
+    } catch (e) {
+      state = app.AuthError(message: e.toString());
+    }
+  }
+
+  /// Send password reset email
+  Future<bool> sendPasswordReset({required String email}) async {
+    state = const app.AuthLoading();
+
+    try {
+      await _repository.sendPasswordResetEmail(email: email);
+      state = app.PasswordResetSent(email: email);
+      return true;
+    } on GymGoAuthException catch (e) {
+      state = app.AuthError(message: e.message, code: e.code);
+      return false;
+    } catch (e) {
+      state = app.AuthError(message: e.toString());
+      return false;
+    }
+  }
+
+  /// Update password
+  Future<bool> updatePassword({required String newPassword}) async {
+    state = const app.AuthLoading();
+
+    try {
+      await _repository.updatePassword(newPassword: newPassword);
+      state = const app.PasswordResetSuccess();
+      return true;
+    } on GymGoAuthException catch (e) {
+      state = app.AuthError(message: e.message, code: e.code);
+      return false;
+    } catch (e) {
+      state = app.AuthError(message: e.toString());
+      return false;
+    }
+  }
+
+  /// Sign out
+  Future<void> signOut() async {
+    state = const app.AuthLoading();
+
+    try {
+      await _repository.signOut();
+      state = const app.Unauthenticated();
+    } on GymGoAuthException catch (e) {
+      state = app.AuthError(message: e.message, code: e.code);
+    } catch (e) {
+      state = app.AuthError(message: e.toString());
+    }
+  }
+
+  /// Reset state to unauthenticated (for navigation)
+  void resetToUnauthenticated() {
+    state = const app.Unauthenticated();
+  }
+
+  /// Clear error and reset to previous state
+  void clearError() {
+    if (_repository.isAuthenticated) {
+      final session = _repository.currentSession!;
+      final user = _repository.currentUser!;
+      state = app.Authenticated(user: user, session: session);
+    } else {
+      state = const app.Unauthenticated();
+    }
+  }
+
+  @override
+  void dispose() {
+    _authSubscription?.cancel();
+    super.dispose();
+  }
+}
+
+/// Provider for the AuthNotifier
+final authProvider = StateNotifierProvider<AuthNotifier, app.AuthState>((ref) {
+  final repository = ref.watch(authRepositoryProvider);
+  return AuthNotifier(repository);
+});
+
+/// Helper provider to check if user is authenticated
+final isAuthenticatedProvider = Provider<bool>((ref) {
+  final authState = ref.watch(authProvider);
+  return authState is app.Authenticated;
+});
+
+/// Helper provider to get current user
+final currentUserProvider = Provider<supabase.User?>((ref) {
+  final authState = ref.watch(authProvider);
+  if (authState is app.Authenticated) {
+    return authState.user;
+  }
+  return null;
+});
