@@ -135,7 +135,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _buildHeader() {
     return Column(
       children: [
-        const GymGoLogo(size: GymGoLogoSize.large),
+        // Dynamic gym logo - shows gym's logo if configured, falls back to default
+        const GymLogo(
+          height: 48,
+          variant: GymLogoVariant.full,
+        ),
         const SizedBox(height: GymGoSpacing.xl),
         const GymGoHeader(
           title: 'Iniciar sesión',

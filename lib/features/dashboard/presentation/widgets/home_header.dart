@@ -5,28 +5,27 @@ import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../core/theme/gymgo_typography.dart';
 import '../../../../shared/ui/components/components.dart';
+import '../../../../shared/providers/branding_providers.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 
 /// Home header with gym logo, greeting, and user avatar
 class HomeHeader extends ConsumerWidget {
   const HomeHeader({
     super.key,
-    this.gymName,
-    this.gymLogoUrl,
     this.onNotificationsTap,
     this.onAvatarTap,
   });
 
-  final String? gymName;
-  final String? gymLogoUrl;
   final VoidCallback? onNotificationsTap;
   final VoidCallback? onAvatarTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
+    final brandingAsync = ref.watch(gymBrandingProvider);
     final userName = _extractUserName(user?.email);
     final greeting = _getGreeting();
+    final gymName = brandingAsync.whenOrNull(data: (b) => b.gymName);
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -34,8 +33,22 @@ class HomeHeader extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          // Gym logo or default
-          _buildGymLogo(),
+          // Gym logo - uses GymLogo widget with branding provider
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
+              color: GymGoColors.cardBackground,
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: Center(
+              child: GymLogo(
+                height: 36,
+                variant: GymLogoVariant.icon,
+              ),
+            ),
+          ),
 
           const SizedBox(width: GymGoSpacing.md),
 
@@ -55,7 +68,7 @@ class HomeHeader extends ConsumerWidget {
                 if (gymName != null) ...[
                   const SizedBox(height: 2),
                   Text(
-                    gymName!,
+                    gymName,
                     style: GymGoTypography.bodySmall.copyWith(
                       color: GymGoColors.textTertiary,
                     ),
@@ -79,47 +92,6 @@ class HomeHeader extends ConsumerWidget {
           // User avatar
           _buildUserAvatar(user?.email),
         ],
-      ),
-    );
-  }
-
-  Widget _buildGymLogo() {
-    if (gymLogoUrl != null) {
-      return Container(
-        width: 44,
-        height: 44,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
-          color: GymGoColors.cardBackground,
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: Image.network(
-          gymLogoUrl!,
-          fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => _defaultLogo(),
-        ),
-      );
-    }
-    return _defaultLogo();
-  }
-
-  Widget _defaultLogo() {
-    return Container(
-      width: 44,
-      height: 44,
-      decoration: BoxDecoration(
-        color: GymGoColors.primary,
-        borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
-      ),
-      child: const Center(
-        child: Text(
-          'G',
-          style: TextStyle(
-            color: GymGoColors.background,
-            fontSize: 20,
-            fontWeight: FontWeight.w800,
-          ),
-        ),
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
+import '../../../../shared/providers/branding_providers.dart';
 import '../../../classes/presentation/providers/classes_providers.dart';
 import '../widgets/home_header.dart';
 import '../widgets/next_class_card.dart';
@@ -27,6 +28,7 @@ class HomeDashboardScreen extends ConsumerWidget {
           onRefresh: () async {
             // Refresh all data providers
             ref.invalidate(nextUserClassProvider);
+            ref.invalidate(gymBrandingProvider);
           },
           color: GymGoColors.primary,
           backgroundColor: GymGoColors.surface,
@@ -41,7 +43,6 @@ class HomeDashboardScreen extends ConsumerWidget {
                     bottom: GymGoSpacing.lg,
                   ),
                   child: HomeHeader(
-                    gymName: 'GymGo Fitness',
                     onNotificationsTap: () {
                       // TODO: Navigate to notifications
                     },

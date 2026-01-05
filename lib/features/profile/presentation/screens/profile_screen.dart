@@ -5,6 +5,7 @@ import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../core/theme/gymgo_typography.dart';
 import '../../../../shared/ui/components/components.dart';
+import '../../../../shared/providers/branding_providers.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 
 /// Profile screen with user info and settings
@@ -14,6 +15,8 @@ class ProfileScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
+    final brandingAsync = ref.watch(gymBrandingProvider);
+    final gymName = brandingAsync.whenOrNull(data: (b) => b.gymName) ?? 'GymGo';
 
     return Scaffold(
       backgroundColor: GymGoColors.background,
@@ -27,6 +30,11 @@ class ProfileScreen extends ConsumerWidget {
           padding: const EdgeInsets.all(GymGoSpacing.screenHorizontal),
           child: Column(
             children: [
+              // Gym branding card
+              _buildGymCard(gymName),
+
+              const SizedBox(height: GymGoSpacing.lg),
+
               // User avatar and info
               _buildUserCard(user?.email),
 
@@ -120,7 +128,7 @@ class ProfileScreen extends ConsumerWidget {
 
               // App version
               Text(
-                'GymGo Mobile v1.0.0',
+                '$gymName Mobile v1.0.0',
                 style: GymGoTypography.labelSmall.copyWith(
                   color: GymGoColors.textTertiary,
                 ),
@@ -130,6 +138,56 @@ class ProfileScreen extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildGymCard(String gymName) {
+    return GymGoCard(
+      padding: const EdgeInsets.all(GymGoSpacing.md),
+      child: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: GymGoColors.cardBackground,
+              borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
+            ),
+            child: Center(
+              child: GymLogo(
+                height: 36,
+                variant: GymLogoVariant.icon,
+              ),
+            ),
+          ),
+          const SizedBox(width: GymGoSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  gymName,
+                  style: GymGoTypography.bodyLarge.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Tu gimnasio',
+                  style: GymGoTypography.bodySmall.copyWith(
+                    color: GymGoColors.textTertiary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Icon(
+            LucideIcons.building2,
+            size: 20,
+            color: GymGoColors.textTertiary,
+          ),
+        ],
       ),
     );
   }
