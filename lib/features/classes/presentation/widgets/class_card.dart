@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
@@ -6,7 +7,11 @@ import '../../../../core/theme/gymgo_typography.dart';
 import '../../../../shared/ui/components/components.dart';
 import '../../domain/gym_class.dart';
 
-/// Class card displaying class info with avatar grid and booking state
+/// Class card matching the reference design with:
+/// - Left accent border (lime when booked, gray otherwise)
+/// - Class name UPPERCASE with time on right
+/// - Avatars grid showing capacity slots
+/// - Cambiar/Reservar action button
 class ClassCard extends StatelessWidget {
   const ClassCard({
     super.key,
@@ -23,25 +28,51 @@ class ClassCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GymGoCard(
-      padding: const EdgeInsets.all(GymGoSpacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return GestureDetector(
+      onTap: () => HapticFeedback.lightImpact(),
+      child: Stack(
         children: [
-          // Header: Time + Status badge
-          _buildHeader(),
-          const SizedBox(height: GymGoSpacing.md),
+          // Main card content
+          GymGoCard(
+            padding: const EdgeInsets.all(GymGoSpacing.md),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header: Class name UPPERCASE + Time
+                _buildHeader(),
+                const SizedBox(height: GymGoSpacing.sm),
 
-          // Class name and instructor
-          _buildClassInfo(),
-          const SizedBox(height: GymGoSpacing.md),
+                // Instructor info
+                _buildInstructorInfo(),
+                const SizedBox(height: GymGoSpacing.md),
 
-          // Participants section
-          _buildParticipantsSection(),
-          const SizedBox(height: GymGoSpacing.md),
+                // Avatars grid with capacity slots
+                _buildAvatarsGrid(),
+                const SizedBox(height: GymGoSpacing.md),
 
-          // Action button
-          _buildActionButton(),
+                // Footer with capacity and action button
+                _buildFooter(),
+              ],
+            ),
+          ),
+          // Left accent border
+          Positioned(
+            left: 0,
+            top: 0,
+            bottom: 0,
+            child: Container(
+              width: 4,
+              decoration: BoxDecoration(
+                color: gymClass.isUserBooked
+                    ? GymGoColors.primary
+                    : GymGoColors.textTertiary,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(GymGoSpacing.radiusLg),
+                  bottomLeft: Radius.circular(GymGoSpacing.radiusLg),
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -49,147 +80,164 @@ class ClassCard extends StatelessWidget {
 
   Widget _buildHeader() {
     return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        // Time
-        Row(
-          children: [
-            Icon(
-              LucideIcons.clock,
-              size: 16,
-              color: GymGoColors.textSecondary,
-            ),
-            const SizedBox(width: GymGoSpacing.xs),
-            Text(
-              '${gymClass.startTime} - ${gymClass.endTime}',
-              style: GymGoTypography.labelLarge.copyWith(
-                color: GymGoColors.textPrimary,
-              ),
-            ),
-          ],
-        ),
-        // Status badge
-        _StatusBadge(status: gymClass.status, isUserBooked: gymClass.isUserBooked),
-      ],
-    );
-  }
-
-  Widget _buildClassInfo() {
-    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          gymClass.name,
-          style: GymGoTypography.headlineSmall,
+        // Class name UPPERCASE
+        Expanded(
+          child: Text(
+            gymClass.name.toUpperCase(),
+            style: GymGoTypography.titleLarge.copyWith(
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
+            ),
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
-        const SizedBox(height: 4),
-        Row(
-          children: [
-            Icon(
-              LucideIcons.user,
-              size: 14,
-              color: GymGoColors.textTertiary,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              gymClass.instructorName,
-              style: GymGoTypography.bodySmall.copyWith(
-                color: GymGoColors.textSecondary,
-              ),
-            ),
-            const SizedBox(width: GymGoSpacing.md),
-            Icon(
-              LucideIcons.mapPin,
-              size: 14,
-              color: GymGoColors.textTertiary,
-            ),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                gymClass.location,
-                style: GymGoTypography.bodySmall.copyWith(
-                  color: GymGoColors.textSecondary,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
+        const SizedBox(width: GymGoSpacing.md),
+        // Time
+        Text(
+          gymClass.startTime,
+          style: GymGoTypography.headlineMedium.copyWith(
+            fontWeight: FontWeight.w400,
+            color: GymGoColors.textPrimary,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildParticipantsSection() {
-    final spotsLeft = gymClass.maxCapacity - gymClass.currentParticipants;
-    final isFull = spotsLeft <= 0;
-    final isAlmostFull = spotsLeft <= 3 && spotsLeft > 0;
-
+  Widget _buildInstructorInfo() {
     return Row(
       children: [
-        // Avatar stack
-        if (gymClass.participantAvatars.isNotEmpty) ...[
-          _AvatarStack(avatars: gymClass.participantAvatars),
-          const SizedBox(width: GymGoSpacing.sm),
-        ],
-        // Capacity info
+        // Instructor logo placeholder
+        Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(GymGoSpacing.radiusSm),
+            color: GymGoColors.surface,
+            border: Border.all(
+              color: GymGoColors.cardBorder,
+              width: 1,
+            ),
+          ),
+          child: const Center(
+            child: Icon(
+              LucideIcons.dumbbell,
+              size: 16,
+              color: GymGoColors.textTertiary,
+            ),
+          ),
+        ),
+        const SizedBox(width: GymGoSpacing.sm),
+        // Instructor name and location
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                '${gymClass.currentParticipants}/${gymClass.maxCapacity} inscritos',
-                style: GymGoTypography.bodySmall.copyWith(
+                gymClass.instructorName,
+                style: GymGoTypography.labelMedium.copyWith(
                   color: GymGoColors.textSecondary,
                 ),
               ),
-              const SizedBox(height: 4),
-              // Progress bar
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  value: gymClass.currentParticipants / gymClass.maxCapacity,
-                  backgroundColor: GymGoColors.cardBorder,
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    isFull
-                        ? GymGoColors.error
-                        : isAlmostFull
-                            ? GymGoColors.warning
-                            : GymGoColors.primary,
-                  ),
-                  minHeight: 4,
+              Text(
+                gymClass.location,
+                style: GymGoTypography.bodySmall.copyWith(
+                  color: GymGoColors.textTertiary,
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(width: GymGoSpacing.sm),
-        // Spots left badge
-        Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: GymGoSpacing.sm,
-            vertical: 4,
-          ),
+      ],
+    );
+  }
+
+  Widget _buildAvatarsGrid() {
+    final capacity = gymClass.maxCapacity;
+    final enrolled = gymClass.currentParticipants;
+    final avatars = gymClass.participantAvatars;
+
+    // Show max 18 slots visible
+    final maxVisible = capacity > 18 ? 18 : capacity;
+
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: List.generate(maxVisible, (index) {
+        final isEnrolled = index < enrolled;
+        final hasAvatar = index < avatars.length && avatars[index].isNotEmpty;
+
+        return Container(
+          width: 44,
+          height: 44,
           decoration: BoxDecoration(
-            color: isFull
-                ? GymGoColors.error.withValues(alpha: 0.15)
-                : isAlmostFull
-                    ? GymGoColors.warning.withValues(alpha: 0.15)
-                    : GymGoColors.success.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(GymGoSpacing.radiusSm),
-          ),
-          child: Text(
-            isFull
-                ? 'Lleno'
-                : '$spotsLeft ${spotsLeft == 1 ? 'lugar' : 'lugares'}',
-            style: GymGoTypography.labelSmall.copyWith(
-              color: isFull
-                  ? GymGoColors.error
-                  : isAlmostFull
-                      ? GymGoColors.warning
-                      : GymGoColors.success,
-              fontWeight: FontWeight.w600,
+            color: isEnrolled ? GymGoColors.surface : GymGoColors.cardBackground,
+            border: Border.all(
+              color: isEnrolled
+                  ? GymGoColors.cardBorder
+                  : GymGoColors.cardBorder.withValues(alpha: 0.5),
+              width: 1,
             ),
           ),
+          child: isEnrolled
+              ? (hasAvatar
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(GymGoSpacing.radiusSm - 1),
+                      child: Image.network(
+                        avatars[index],
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _buildEnrolledPlaceholder(),
+                      ),
+                    )
+                  : _buildEnrolledPlaceholder())
+              : _buildEmptySlot(),
+        );
+      }),
+    );
+  }
+
+  Widget _buildEnrolledPlaceholder() {
+    return const Center(
+      child: Icon(
+        LucideIcons.user,
+        size: 20,
+        color: GymGoColors.textTertiary,
+      ),
+    );
+  }
+
+  Widget _buildEmptySlot() {
+    return Center(
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(
+          color: GymGoColors.cardBorder.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(2),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFooter() {
+    return Row(
+      children: [
+        // Capacity info
+        Expanded(
+          child: Text(
+            '${gymClass.currentParticipants}/${gymClass.maxCapacity} inscritos',
+            style: GymGoTypography.labelSmall.copyWith(
+              color: GymGoColors.textTertiary,
+            ),
+          ),
+        ),
+        // Action button wrapped to compute intrinsic width
+        IntrinsicWidth(
+          child: _buildActionButton(),
         ),
       ],
     );
@@ -198,261 +246,97 @@ class ClassCard extends StatelessWidget {
   Widget _buildActionButton() {
     // Class is finished
     if (gymClass.status == ClassStatus.finished) {
-      return SizedBox(
-        width: double.infinity,
-        child: OutlinedButton(
-          onPressed: null,
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            side: const BorderSide(color: GymGoColors.cardBorder),
+      return OutlinedButton(
+        onPressed: null,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: GymGoColors.textTertiary,
+          padding: const EdgeInsets.symmetric(
+            horizontal: GymGoSpacing.md,
+            vertical: GymGoSpacing.sm,
           ),
-          child: Text(
-            'Clase finalizada',
-            style: GymGoTypography.labelMedium.copyWith(
-              color: GymGoColors.textTertiary,
-            ),
+          side: const BorderSide(color: GymGoColors.cardBorder),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(GymGoSpacing.radiusFull),
           ),
         ),
+        child: const Text('Finalizada'),
       );
     }
 
-    // User is already booked - show cancel button
+    // User is already booked - show "Cambiar" button
     if (gymClass.isUserBooked) {
-      return SizedBox(
-        width: double.infinity,
-        child: OutlinedButton.icon(
-          onPressed: isLoading ? null : onCancel,
-          icon: isLoading
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: GymGoColors.error,
-                  ),
-                )
-              : const Icon(LucideIcons.x, size: 16),
-          label: Text(isLoading ? 'Cancelando...' : 'Cancelar reserva'),
-          style: OutlinedButton.styleFrom(
-            foregroundColor: GymGoColors.error,
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            side: BorderSide(
-              color: GymGoColors.error.withValues(alpha: 0.5),
-            ),
+      return OutlinedButton.icon(
+        onPressed: isLoading ? null : onCancel,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: GymGoColors.textPrimary,
+          backgroundColor: GymGoColors.surface,
+          padding: const EdgeInsets.symmetric(
+            horizontal: GymGoSpacing.md,
+            vertical: GymGoSpacing.sm,
+          ),
+          side: const BorderSide(color: GymGoColors.cardBorder),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(GymGoSpacing.radiusFull),
           ),
         ),
+        icon: isLoading
+            ? const SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: GymGoColors.textPrimary,
+                ),
+              )
+            : const Icon(LucideIcons.refreshCw, size: 14),
+        label: Text(isLoading ? 'Cambiando...' : 'Cambiar'),
       );
     }
 
-    // Class is full - show waitlist or disabled button
+    // Class is full
     if (gymClass.status == ClassStatus.full) {
-      return SizedBox(
-        width: double.infinity,
-        child: OutlinedButton.icon(
-          onPressed: null,
-          icon: const Icon(LucideIcons.userPlus, size: 16),
-          label: const Text('Clase llena'),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            side: const BorderSide(color: GymGoColors.cardBorder),
+      return OutlinedButton(
+        onPressed: null,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: GymGoColors.textTertiary,
+          padding: const EdgeInsets.symmetric(
+            horizontal: GymGoSpacing.md,
+            vertical: GymGoSpacing.sm,
+          ),
+          side: const BorderSide(color: GymGoColors.cardBorder),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(GymGoSpacing.radiusFull),
           ),
         ),
+        child: const Text('Lleno'),
       );
     }
 
     // Available - show reserve button
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton.icon(
-        onPressed: isLoading ? null : onReserve,
-        icon: isLoading
-            ? const SizedBox(
-                width: 16,
-                height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: GymGoColors.background,
-                ),
-              )
-            : const Icon(LucideIcons.calendarPlus, size: 16),
-        label: Text(isLoading ? 'Reservando...' : 'Reservar lugar'),
-        style: ElevatedButton.styleFrom(
-          backgroundColor: GymGoColors.primary,
-          foregroundColor: GymGoColors.background,
-          padding: const EdgeInsets.symmetric(vertical: 12),
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({
-    required this.status,
-    required this.isUserBooked,
-  });
-
-  final ClassStatus status;
-  final bool isUserBooked;
-
-  @override
-  Widget build(BuildContext context) {
-    if (isUserBooked) {
-      return Container(
+    return ElevatedButton.icon(
+      onPressed: isLoading ? null : onReserve,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: GymGoColors.primary,
+        foregroundColor: GymGoColors.background,
         padding: const EdgeInsets.symmetric(
-          horizontal: GymGoSpacing.sm,
-          vertical: 4,
+          horizontal: GymGoSpacing.md,
+          vertical: GymGoSpacing.sm,
         ),
-        decoration: BoxDecoration(
-          color: GymGoColors.primary.withValues(alpha: 0.15),
-          borderRadius: BorderRadius.circular(GymGoSpacing.radiusSm),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(GymGoSpacing.radiusFull),
         ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              LucideIcons.checkCircle,
-              size: 12,
-              color: GymGoColors.primary,
-            ),
-            const SizedBox(width: 4),
-            Text(
-              'Reservado',
-              style: GymGoTypography.labelSmall.copyWith(
-                color: GymGoColors.primary,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ],
-        ),
-      );
-    }
-
-    switch (status) {
-      case ClassStatus.available:
-        return const SizedBox.shrink();
-      case ClassStatus.full:
-        return Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: GymGoSpacing.sm,
-            vertical: 4,
-          ),
-          decoration: BoxDecoration(
-            color: GymGoColors.error.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(GymGoSpacing.radiusSm),
-          ),
-          child: Text(
-            'Lleno',
-            style: GymGoTypography.labelSmall.copyWith(
-              color: GymGoColors.error,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        );
-      case ClassStatus.finished:
-        return Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: GymGoSpacing.sm,
-            vertical: 4,
-          ),
-          decoration: BoxDecoration(
-            color: GymGoColors.textTertiary.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(GymGoSpacing.radiusSm),
-          ),
-          child: Text(
-            'Finalizada',
-            style: GymGoTypography.labelSmall.copyWith(
-              color: GymGoColors.textTertiary,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        );
-    }
-  }
-}
-
-class _AvatarStack extends StatelessWidget {
-  const _AvatarStack({required this.avatars});
-
-  final List<String> avatars;
-
-  @override
-  Widget build(BuildContext context) {
-    const avatarSize = 28.0;
-    const overlap = 8.0;
-    final displayCount = avatars.length > 4 ? 4 : avatars.length;
-    final remainingCount = avatars.length - displayCount;
-
-    return SizedBox(
-      width: avatarSize + (displayCount - 1) * (avatarSize - overlap) + (remainingCount > 0 ? avatarSize - overlap : 0),
-      height: avatarSize,
-      child: Stack(
-        children: [
-          ...List.generate(displayCount, (index) {
-            return Positioned(
-              left: index * (avatarSize - overlap),
-              child: Container(
-                width: avatarSize,
-                height: avatarSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: GymGoColors.surface,
-                    width: 2,
-                  ),
-                  color: GymGoColors.cardBorder,
-                ),
-                child: ClipOval(
-                  child: avatars[index].isNotEmpty
-                      ? Image.network(
-                          avatars[index],
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => _buildPlaceholderAvatar(),
-                        )
-                      : _buildPlaceholderAvatar(),
-                ),
-              ),
-            );
-          }),
-          if (remainingCount > 0)
-            Positioned(
-              left: displayCount * (avatarSize - overlap),
-              child: Container(
-                width: avatarSize,
-                height: avatarSize,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(
-                    color: GymGoColors.surface,
-                    width: 2,
-                  ),
-                  color: GymGoColors.primary.withValues(alpha: 0.15),
-                ),
-                child: Center(
-                  child: Text(
-                    '+$remainingCount',
-                    style: GymGoTypography.labelSmall.copyWith(
-                      color: GymGoColors.primary,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
       ),
-    );
-  }
-
-  Widget _buildPlaceholderAvatar() {
-    return Container(
-      color: GymGoColors.cardBorder,
-      child: const Icon(
-        LucideIcons.user,
-        size: 14,
-        color: GymGoColors.textTertiary,
-      ),
+      icon: isLoading
+          ? const SizedBox(
+              width: 14,
+              height: 14,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: GymGoColors.background,
+              ),
+            )
+          : const Icon(LucideIcons.calendarPlus, size: 14),
+      label: Text(isLoading ? 'Reservando...' : 'Reservar'),
     );
   }
 }
