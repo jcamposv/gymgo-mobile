@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "76038488450",
+    "project_id": "gymgo-e8098",
+    "storage_bucket": "gymgo-e8098.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:76038488450:android:7139f878abf48566c30f9b",
+        "android_client_info": {
+          "package_name": "com.gymgo.gymgo_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCYmv4Cj8M5pz3q8Nh4z_umN8Rmh5wQjqc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

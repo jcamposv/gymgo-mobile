@@ -1,19 +1,86 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../core/theme/gymgo_typography.dart';
+import '../../../../shared/models/member.dart';
+import '../../../../shared/models/profile_photo_selection.dart';
 import '../../../../shared/ui/components/components.dart';
 import '../../../../shared/providers/branding_providers.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 
 /// Profile screen with user info and settings
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  Member? _member;
+  bool _isLoadingMember = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMemberData();
+  }
+
+  Future<void> _loadMemberData() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) {
+      setState(() => _isLoadingMember = false);
+      return;
+    }
+
+    try {
+      final supabase = Supabase.instance.client;
+      final response = await supabase
+          .from('members')
+          .select()
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+      if (response != null) {
+        debugPrint('Member data: $response');
+        debugPrint('avatar_url from DB: ${response['avatar_url']}');
+        final member = Member.fromJson(response);
+        debugPrint('Parsed member - avatarPath: ${member.avatarPath}, profileImageUrl: ${member.profileImageUrl}');
+        setState(() {
+          _member = member;
+          _isLoadingMember = false;
+        });
+      } else {
+        // Create member from user data if not exists
+        setState(() {
+          _member = Member(
+            id: user.id,
+            name: user.email?.split('@').first ?? 'Usuario',
+            email: user.email,
+          );
+          _isLoadingMember = false;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading member: $e');
+      // Fallback to user data
+      setState(() {
+        _member = Member(
+          id: user.id,
+          name: user.email?.split('@').first ?? 'Usuario',
+          email: user.email,
+        );
+        _isLoadingMember = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final brandingAsync = ref.watch(gymBrandingProvider);
     final gymName = brandingAsync.whenOrNull(data: (b) => b.gymName) ?? 'GymGo';
@@ -154,7 +221,7 @@ class ProfileScreen extends ConsumerWidget {
               color: GymGoColors.cardBackground,
               borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
             ),
-            child: Center(
+            child: const Center(
               child: GymLogo(
                 height: 36,
                 variant: GymLogoVariant.icon,
@@ -182,7 +249,7 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
           ),
-          Icon(
+          const Icon(
             LucideIcons.building2,
             size: 20,
             color: GymGoColors.textTertiary,
@@ -193,40 +260,54 @@ class ProfileScreen extends ConsumerWidget {
   }
 
   Widget _buildUserCard(String? email) {
-    final name = email?.split('@').first ?? 'Usuario';
-    final initials = name.isNotEmpty
-        ? name.substring(0, name.length >= 2 ? 2 : 1).toUpperCase()
-        : 'U';
+    final name = _member?.name ?? email?.split('@').first ?? 'Usuario';
+    final displayName = name.isNotEmpty
+        ? name[0].toUpperCase() + name.substring(1)
+        : 'Usuario';
 
     return GymGoCard(
       padding: const EdgeInsets.all(GymGoSpacing.cardPadding),
       child: Row(
         children: [
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              gradient: GymGoColors.primaryGradient,
-              borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
-            ),
-            child: Center(
-              child: Text(
-                initials,
-                style: const TextStyle(
-                  color: GymGoColors.background,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w700,
+          // Profile photo with edit functionality
+          if (_isLoadingMember)
+            Container(
+              width: 64,
+              height: 64,
+              decoration: BoxDecoration(
+                color: GymGoColors.surface,
+                borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
+              ),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: GymGoColors.primary,
                 ),
               ),
+            )
+          else if (_member != null)
+            MemberProfilePhoto(
+              member: _member!,
+              size: ProfilePhotoSize.large,
+              customSize: 64,
+              isEditable: true,
+              showEditOverlay: true,
+              onSave: _handleSaveProfilePhoto,
+              onSavedOptimistic: _handleOptimisticUpdate,
+            )
+          else
+            PhotoFallback(
+              initials: displayName.substring(0, displayName.length >= 2 ? 2 : 1).toUpperCase(),
+              size: 64,
+              borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
             ),
-          ),
           const SizedBox(width: GymGoSpacing.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  name[0].toUpperCase() + name.substring(1),
+                  displayName,
                   style: GymGoTypography.headlineSmall,
                 ),
                 const SizedBox(height: 2),
@@ -257,17 +338,119 @@ class ProfileScreen extends ConsumerWidget {
               ],
             ),
           ),
-          IconButton(
-            onPressed: () {},
-            icon: const Icon(
-              LucideIcons.pencil,
-              size: 18,
-              color: GymGoColors.textTertiary,
+          // The edit button is now part of MemberProfilePhoto
+          // Only show if not using MemberProfilePhoto
+          if (_member == null)
+            IconButton(
+              onPressed: () {},
+              icon: const Icon(
+                LucideIcons.pencil,
+                size: 18,
+                color: GymGoColors.textTertiary,
+              ),
             ),
-          ),
         ],
       ),
     );
+  }
+
+  /// Handle optimistic UI update
+  void _handleOptimisticUpdate(ProfilePhotoSelection selection) {
+    if (_member == null) return;
+
+    setState(() {
+      _member = selection.when(
+        none: () => _member!.copyWith(
+          clearProfileImageUrl: true,
+          clearAvatarPath: true,
+        ),
+        avatar: (path) => _member!.copyWith(
+          avatarPath: path,
+          clearProfileImageUrl: true,
+        ),
+        upload: (file, bytes) => _member!, // Keep current until upload completes
+      );
+    });
+  }
+
+  /// Handle save profile photo
+  Future<void> _handleSaveProfilePhoto(ProfilePhotoSelection selection) async {
+    if (_member == null) return;
+
+    final supabase = Supabase.instance.client;
+
+    await selection.when(
+      none: () => _removeProfilePhoto(supabase),
+      avatar: (path) => _setAvatarPath(supabase, path),
+      upload: (file, bytes) => _uploadProfileImage(supabase, file),
+    );
+  }
+
+  Future<void> _removeProfilePhoto(SupabaseClient supabase) async {
+    if (_member == null) return;
+
+    await supabase.from('members').update({
+      'avatar_url': null,
+    }).eq('id', _member!.id);
+
+    setState(() {
+      _member = _member!.copyWith(
+        clearProfileImageUrl: true,
+        clearAvatarPath: true,
+      );
+    });
+  }
+
+  Future<void> _setAvatarPath(SupabaseClient supabase, String avatarPath) async {
+    if (_member == null) return;
+
+    // Convert mobile path to web format: avatar_2/avatar_01.svg -> /avatar/avatar_01.svg
+    final webAvatarUrl = avatarPath.replaceFirst('avatar_2/', '/avatar/');
+
+    await supabase.from('members').update({
+      'avatar_url': webAvatarUrl,
+    }).eq('id', _member!.id);
+
+    setState(() {
+      _member = _member!.copyWith(
+        avatarPath: avatarPath,
+        clearProfileImageUrl: true,
+      );
+    });
+  }
+
+  Future<void> _uploadProfileImage(SupabaseClient supabase, File file) async {
+    if (_member == null) return;
+
+    final memberId = _member!.id;
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final fileName = 'profile_${memberId}_$timestamp.jpg';
+    final storagePath = 'profiles/$memberId/$fileName';
+
+    // Upload to Supabase Storage
+    await supabase.storage.from('avatars').upload(
+          storagePath,
+          file,
+          fileOptions: const FileOptions(
+            cacheControl: '3600',
+            upsert: true,
+          ),
+        );
+
+    // Get public URL
+    final publicUrl = supabase.storage.from('avatars').getPublicUrl(storagePath);
+
+    // Update member in database - web uses avatar_url for everything
+    await supabase.from('members').update({
+      'avatar_url': publicUrl,
+    }).eq('id', _member!.id);
+
+    setState(() {
+      _member = _member!.copyWith(
+        profileImageUrl: publicUrl,
+        clearAvatarPath: true,
+      );
+    });
   }
 
   Widget _buildSettingsSection({

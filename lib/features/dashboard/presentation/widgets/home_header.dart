@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/config/avatars.dart';
 import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../core/theme/gymgo_typography.dart';
+import '../../../../shared/models/member.dart';
 import '../../../../shared/ui/components/components.dart';
 import '../../../../shared/providers/branding_providers.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 
 /// Home header with gym logo, greeting, and user avatar
-class HomeHeader extends ConsumerWidget {
+class HomeHeader extends ConsumerStatefulWidget {
   const HomeHeader({
     super.key,
     this.onNotificationsTap,
@@ -20,10 +24,44 @@ class HomeHeader extends ConsumerWidget {
   final VoidCallback? onAvatarTap;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeHeader> createState() => _HomeHeaderState();
+}
+
+class _HomeHeaderState extends ConsumerState<HomeHeader> {
+  Member? _member;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadMemberData();
+  }
+
+  Future<void> _loadMemberData() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
+
+    try {
+      final response = await Supabase.instance.client
+          .from('members')
+          .select()
+          .eq('user_id', user.id)
+          .maybeSingle();
+
+      if (response != null && mounted) {
+        setState(() {
+          _member = Member.fromJson(response);
+        });
+      }
+    } catch (e) {
+      debugPrint('Error loading member for header: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final brandingAsync = ref.watch(gymBrandingProvider);
-    final userName = _extractUserName(user?.email);
+    final userName = _member?.name ?? _extractUserName(user?.email);
     final greeting = _getGreeting();
     final gymName = brandingAsync.whenOrNull(data: (b) => b.gymName);
 
@@ -42,7 +80,7 @@ class HomeHeader extends ConsumerWidget {
               color: GymGoColors.cardBackground,
             ),
             clipBehavior: Clip.antiAlias,
-            child: Center(
+            child: const Center(
               child: GymLogo(
                 height: 36,
                 variant: GymLogoVariant.icon,
@@ -83,7 +121,7 @@ class HomeHeader extends ConsumerWidget {
           // Notifications button
           _buildIconButton(
             icon: LucideIcons.bell,
-            onTap: onNotificationsTap,
+            onTap: widget.onNotificationsTap,
             hasBadge: false, // TODO: Connect to notifications count
           ),
 
@@ -146,29 +184,61 @@ class HomeHeader extends ConsumerWidget {
     final initials = _getInitials(email);
 
     return GestureDetector(
-      onTap: onAvatarTap,
+      onTap: widget.onAvatarTap,
       child: Container(
         width: 40,
         height: 40,
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              GymGoColors.primary,
-              GymGoColors.primary.withValues(alpha: 0.7),
-            ],
-          ),
           borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
         ),
-        child: Center(
-          child: Text(
-            initials,
-            style: const TextStyle(
-              color: GymGoColors.background,
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-            ),
+        clipBehavior: Clip.antiAlias,
+        child: _buildAvatarContent(initials),
+      ),
+    );
+  }
+
+  Widget _buildAvatarContent(String initials) {
+    // Check if member has profile image URL (uploaded photo)
+    if (_member?.profileImageUrl != null && _member!.profileImageUrl!.isNotEmpty) {
+      return Image.network(
+        _member!.profileImageUrl!,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _buildInitialsFallback(initials),
+      );
+    }
+
+    // Check if member has avatar path (predefined avatar)
+    if (_member?.avatarPath != null && _member!.avatarPath!.isNotEmpty) {
+      final assetPath = AvatarConfig.getAvatarUrl(_member!.avatarPath!);
+      return SvgPicture.asset(
+        assetPath,
+        fit: BoxFit.cover,
+      );
+    }
+
+    // Fallback to initials
+    return _buildInitialsFallback(initials);
+  }
+
+  Widget _buildInitialsFallback(String initials) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            GymGoColors.primary,
+            GymGoColors.primary.withValues(alpha: 0.7),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Text(
+          initials,
+          style: const TextStyle(
+            color: GymGoColors.background,
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
           ),
         ),
       ),

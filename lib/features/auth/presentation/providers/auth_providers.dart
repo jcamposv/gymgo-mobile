@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as supabase;
+import '../../../../shared/providers/notification_providers.dart';
 import '../../data/auth_repository.dart';
 import '../../domain/auth_exception.dart';
 import '../../domain/auth_state.dart' as app;
@@ -12,11 +14,12 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 
 /// Main auth state notifier
 class AuthNotifier extends StateNotifier<app.AuthState> {
-  AuthNotifier(this._repository) : super(const app.AuthInitial()) {
+  AuthNotifier(this._repository, this._ref) : super(const app.AuthInitial()) {
     _initialize();
   }
 
   final AuthRepository _repository;
+  final Ref _ref;
   StreamSubscription<supabase.AuthState>? _authSubscription;
 
   void _initialize() {
@@ -60,6 +63,13 @@ class AuthNotifier extends StateNotifier<app.AuthState> {
           user: response.user!,
           session: response.session!,
         );
+
+        // Sync push token and subscribe to gym topic after login
+        try {
+          await _ref.read(notificationProvider.notifier).syncToken();
+        } catch (e) {
+          debugPrint('Error syncing push token after login: $e');
+        }
       } else {
         state = const app.AuthError(
           message: 'No se pudo iniciar sesión. Intenta de nuevo.',
@@ -111,6 +121,14 @@ class AuthNotifier extends StateNotifier<app.AuthState> {
     state = const app.AuthLoading();
 
     try {
+      // Deactivate push token before signing out
+      try {
+        await _ref.read(notificationProvider.notifier).onLogout();
+      } catch (e) {
+        debugPrint('Error deactivating push token: $e');
+        // Continue with sign out even if token deactivation fails
+      }
+
       await _repository.signOut();
       state = const app.Unauthenticated();
     } on GymGoAuthException catch (e) {
@@ -146,7 +164,7 @@ class AuthNotifier extends StateNotifier<app.AuthState> {
 /// Provider for the AuthNotifier
 final authProvider = StateNotifierProvider<AuthNotifier, app.AuthState>((ref) {
   final repository = ref.watch(authRepositoryProvider);
-  return AuthNotifier(repository);
+  return AuthNotifier(repository, ref);
 });
 
 /// Helper provider to check if user is authenticated

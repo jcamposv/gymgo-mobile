@@ -12,11 +12,13 @@ import '../../features/classes/presentation/screens/classes_screen.dart';
 import '../../features/workouts/presentation/screens/workouts_screen.dart';
 import '../../features/progress/presentation/screens/progress_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../services/notification_service.dart';
 import 'routes.dart';
 
 /// Provider for GoRouter with authentication
 final routerProvider = Provider<GoRouter>((ref) {
-  final rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+  // Use global navigator key from notification service for deep linking
+  final rootNavigatorKey = navigatorKey;
   final shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
   final authState = ref.watch(authProvider);
 
