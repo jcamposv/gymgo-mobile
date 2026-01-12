@@ -9,6 +9,7 @@ class Member {
     required this.id,
     required this.name,
     this.email,
+    this.organizationId,
     this.profileImageUrl,
     this.avatarPath,
     this.membershipStatus,
@@ -18,6 +19,7 @@ class Member {
   final String id;
   final String name;
   final String? email;
+  final String? organizationId;
   final String? profileImageUrl;
   final String? avatarPath;
   final String? membershipStatus;
@@ -60,6 +62,7 @@ class Member {
     String? id,
     String? name,
     String? email,
+    String? organizationId,
     String? profileImageUrl,
     String? avatarPath,
     String? membershipStatus,
@@ -71,6 +74,7 @@ class Member {
       id: id ?? this.id,
       name: name ?? this.name,
       email: email ?? this.email,
+      organizationId: organizationId ?? this.organizationId,
       profileImageUrl: clearProfileImageUrl ? null : (profileImageUrl ?? this.profileImageUrl),
       avatarPath: clearAvatarPath ? null : (avatarPath ?? this.avatarPath),
       membershipStatus: membershipStatus ?? this.membershipStatus,
@@ -103,6 +107,7 @@ class Member {
       id: json['id'] as String,
       name: json['name'] as String? ?? json['full_name'] as String? ?? 'Member',
       email: json['email'] as String?,
+      organizationId: json['organization_id'] as String?,
       profileImageUrl: profileImageUrl,
       avatarPath: avatarPath,
       membershipStatus: json['membership_status'] as String?,
@@ -118,6 +123,7 @@ class Member {
       'id': id,
       'name': name,
       if (email != null) 'email': email,
+      if (organizationId != null) 'organization_id': organizationId,
       if (profileImageUrl != null) 'profile_image_url': profileImageUrl,
       if (avatarPath != null) 'avatar_path': avatarPath,
       if (membershipStatus != null) 'membership_status': membershipStatus,
@@ -133,6 +139,7 @@ class Member {
           id == other.id &&
           name == other.name &&
           email == other.email &&
+          organizationId == other.organizationId &&
           profileImageUrl == other.profileImageUrl &&
           avatarPath == other.avatarPath;
 
@@ -141,6 +148,7 @@ class Member {
       id.hashCode ^
       name.hashCode ^
       email.hashCode ^
+      organizationId.hashCode ^
       profileImageUrl.hashCode ^
       avatarPath.hashCode;
 }

@@ -11,6 +11,7 @@ import '../../features/dashboard/presentation/screens/main_shell.dart';
 import '../../features/classes/presentation/screens/classes_screen.dart';
 import '../../features/workouts/presentation/screens/workouts_screen.dart';
 import '../../features/progress/presentation/screens/progress_screen.dart';
+import '../../features/measurements/presentation/screens/measurements_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../services/notification_service.dart';
 import 'routes.dart';
@@ -118,6 +119,15 @@ final routerProvider = Provider<GoRouter>((ref) {
               context,
               state,
               const ProgressScreen(),
+            ),
+          ),
+          GoRoute(
+            path: Routes.memberMeasurements,
+            name: Routes.memberMeasurementsName,
+            pageBuilder: (context, state) => _buildPageWithTransition(
+              context,
+              state,
+              const MeasurementsScreen(),
             ),
           ),
           GoRoute(

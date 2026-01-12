@@ -12,6 +12,7 @@ class Routes {
   static const String memberClasses = '/member/classes';
   static const String memberWorkouts = '/member/workouts';
   static const String memberProgress = '/member/progress';
+  static const String memberMeasurements = '/member/measurements';
   static const String profile = '/profile';
 
   // Route names for navigation
@@ -22,5 +23,6 @@ class Routes {
   static const String memberClassesName = 'member-classes';
   static const String memberWorkoutsName = 'member-workouts';
   static const String memberProgressName = 'member-progress';
+  static const String memberMeasurementsName = 'member-measurements';
   static const String profileName = 'profile';
 }

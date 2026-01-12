@@ -199,7 +199,7 @@ class NotificationService {
     _onForegroundNotification?.call(message);
 
     // 3. Refresh relevant data (e.g., classes list)
-    _refreshDataForNotificationType(message.data['type']);
+    _refreshDataForNotificationType(message.data['type'] as String?);
   }
 
   /// Show local notification for foreground messages

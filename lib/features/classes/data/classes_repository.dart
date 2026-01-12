@@ -46,7 +46,7 @@ class ClassesRepository {
         .gte('start_time', startOfDay.toIso8601String())
         .lt('start_time', endOfDay.toIso8601String())
         .eq('is_cancelled', false)
-        .order('start_time');
+        .order('start_time', ascending: true);
 
     print('getClassesByDate: Found ${classesResponse.length} classes');
 

@@ -6,6 +6,8 @@ import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../shared/providers/branding_providers.dart';
 import '../../../classes/presentation/providers/classes_providers.dart';
+import '../../../measurements/presentation/providers/measurements_providers.dart';
+import '../../../profile/presentation/providers/member_providers.dart';
 import '../widgets/home_header.dart';
 import '../widgets/next_class_card.dart';
 import '../widgets/today_workout_card.dart';
@@ -66,7 +68,7 @@ class HomeDashboardScreen extends ConsumerWidget {
                       () => context.go('/member/workouts'),
                     ),
                     GymGoQuickActions.addMeasurement(
-                      () => context.go('/member/progress'),
+                      () => context.go('/member/measurements'),
                     ),
                   ],
                 ).animate().fadeIn(duration: 300.ms, delay: 100.ms),
@@ -156,22 +158,13 @@ class HomeDashboardScreen extends ConsumerWidget {
                 child: SizedBox(height: GymGoSpacing.md),
               ),
 
-              // Last Measurement Card - Still placeholder (progress feature not implemented)
+              // Last Measurement Card - Connected to Supabase
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: GymGoSpacing.screenHorizontal,
                   ),
-                  child: LastMeasurementCard(
-                    isLoading: false,
-                    weight: null, // Will show empty state
-                    bodyFat: null,
-                    muscleMass: null,
-                    lastMeasuredDate: null,
-                    weightChange: null,
-                    onTap: () => context.go('/member/progress'),
-                    onAddMeasurement: () => context.go('/member/progress'),
-                  ).animate().fadeIn(duration: 300.ms, delay: 400.ms),
+                  child: _buildMeasurementCard(context, ref),
                 ),
               ),
 
@@ -182,6 +175,78 @@ class HomeDashboardScreen extends ConsumerWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildMeasurementCard(BuildContext context, WidgetRef ref) {
+    final memberAsync = ref.watch(currentMemberProvider);
+
+    return memberAsync.when(
+      data: (member) {
+        if (member == null) {
+          return LastMeasurementCard(
+            isLoading: false,
+            onTap: () => context.go('/member/measurements'),
+            onAddMeasurement: () => context.go('/member/measurements'),
+          ).animate().fadeIn(duration: 300.ms, delay: 400.ms);
+        }
+
+        final measurementsParams = (memberId: member.id, organizationId: member.organizationId);
+        final measurementsAsync = ref.watch(memberMeasurementsProvider(measurementsParams));
+
+        return measurementsAsync.when(
+          data: (measurements) {
+            if (measurements.isEmpty) {
+              return LastMeasurementCard(
+                isLoading: false,
+                onTap: () => context.go('/member/measurements'),
+                onAddMeasurement: () => context.go('/member/measurements'),
+              ).animate().fadeIn(duration: 300.ms, delay: 400.ms);
+            }
+
+            final latest = measurements.first;
+            double? weightChange;
+
+            // Calculate weight change if we have at least 2 measurements
+            if (measurements.length > 1 &&
+                latest.bodyWeightKg != null &&
+                measurements[1].bodyWeightKg != null) {
+              weightChange = latest.bodyWeightKg! - measurements[1].bodyWeightKg!;
+            }
+
+            return LastMeasurementCard(
+              isLoading: false,
+              weight: latest.bodyWeightKg,
+              bodyFat: latest.bodyFatPercentage,
+              muscleMass: latest.muscleMassKg,
+              lastMeasuredDate: latest.measuredAt,
+              weightChange: weightChange,
+              onTap: () => context.go('/member/measurements'),
+              onAddMeasurement: () => context.go('/member/measurements'),
+            ).animate().fadeIn(duration: 300.ms, delay: 400.ms);
+          },
+          loading: () => LastMeasurementCard(
+            isLoading: true,
+            onTap: () => context.go('/member/measurements'),
+            onAddMeasurement: () => context.go('/member/measurements'),
+          ),
+          error: (_, __) => LastMeasurementCard(
+            isLoading: false,
+            onTap: () => context.go('/member/measurements'),
+            onAddMeasurement: () => context.go('/member/measurements'),
+          ),
+        );
+      },
+      loading: () => LastMeasurementCard(
+        isLoading: true,
+        onTap: () => context.go('/member/measurements'),
+        onAddMeasurement: () => context.go('/member/measurements'),
+      ),
+      error: (_, __) => LastMeasurementCard(
+        isLoading: false,
+        onTap: () => context.go('/member/measurements'),
+        onAddMeasurement: () => context.go('/member/measurements'),
       ),
     );
   }
