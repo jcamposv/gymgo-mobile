@@ -172,12 +172,12 @@ class LastMeasurementCard extends StatelessWidget {
                   width: 1,
                   height: 50,
                   color: GymGoColors.cardBorder,
-                  margin: const EdgeInsets.symmetric(horizontal: GymGoSpacing.md),
+                  margin: const EdgeInsets.symmetric(horizontal: GymGoSpacing.sm),
                 ),
               if (bodyFat != null)
                 Expanded(
                   child: _buildMetricItem(
-                    label: 'Grasa corporal',
+                    label: '% Grasa corporal',
                     value: '${bodyFat!.toStringAsFixed(1)}%',
                     icon: LucideIcons.percent,
                   ),
@@ -187,7 +187,7 @@ class LastMeasurementCard extends StatelessWidget {
                   width: 1,
                   height: 50,
                   color: GymGoColors.cardBorder,
-                  margin: const EdgeInsets.symmetric(horizontal: GymGoSpacing.md),
+                  margin: const EdgeInsets.symmetric(horizontal: GymGoSpacing.sm),
                 ),
               if (muscleMass != null)
                 Expanded(
@@ -244,8 +244,10 @@ class LastMeasurementCard extends StatelessWidget {
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               icon,
@@ -253,28 +255,37 @@ class LastMeasurementCard extends StatelessWidget {
               color: GymGoColors.textTertiary,
             ),
             const SizedBox(width: 4),
-            Text(
-              label,
-              style: GymGoTypography.labelSmall.copyWith(
-                color: GymGoColors.textTertiary,
+            Flexible(
+              child: Text(
+                label,
+                style: GymGoTypography.labelSmall.copyWith(
+                  color: GymGoColors.textTertiary,
+                ),
+                overflow: TextOverflow.ellipsis,
+                maxLines: 1,
               ),
             ),
           ],
         ),
         const SizedBox(height: 4),
-        Row(
-          children: [
-            Text(
-              value,
-              style: GymGoTypography.headlineSmall.copyWith(
-                fontWeight: FontWeight.w700,
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                value,
+                style: GymGoTypography.headlineSmall.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
               ),
-            ),
-            if (change != null) ...[
-              const SizedBox(width: 6),
-              _buildChangeIndicator(change),
+              if (change != null) ...[
+                const SizedBox(width: 6),
+                _buildChangeIndicator(change),
+              ],
             ],
-          ],
+          ),
         ),
       ],
     );
