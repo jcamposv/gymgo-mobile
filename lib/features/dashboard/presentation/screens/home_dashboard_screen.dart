@@ -65,7 +65,7 @@ class HomeDashboardScreen extends ConsumerWidget {
                       badge: nextClassAsync.valueOrNull != null ? '1' : null,
                     ),
                     GymGoQuickActions.myWorkouts(
-                      () => context.go('/member/workouts'),
+                      () => context.go('/member/routines'),
                     ),
                     GymGoQuickActions.addMeasurement(
                       () => context.go('/member/measurements'),

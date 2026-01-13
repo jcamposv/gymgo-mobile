@@ -25,8 +25,9 @@ class _MainShellState extends ConsumerState<MainShell> {
     final location = GoRouterState.of(context).uri.path;
 
     if (location.startsWith('/member/classes')) return 1;
-    if (location.startsWith('/member/workouts')) return 2;
-    if (location.startsWith('/member/progress')) return 3;
+    if (location.startsWith('/member/routines')) return 2;
+    if (location.startsWith('/member/measurements') ||
+        location.startsWith('/member/progress')) return 3;
     if (location.startsWith('/profile')) return 4;
     return 0; // Home
   }
@@ -42,10 +43,10 @@ class _MainShellState extends ConsumerState<MainShell> {
         context.go('/member/classes');
         break;
       case 2:
-        context.go('/member/workouts');
+        context.go('/member/routines');
         break;
       case 3:
-        context.go('/member/progress');
+        context.go('/member/measurements');
         break;
       case 4:
         context.go('/profile');
@@ -98,8 +99,8 @@ class _MainShellState extends ConsumerState<MainShell> {
                   onTap: () => _onItemTapped(2, context),
                 ),
                 _NavItem(
-                  icon: LucideIcons.lineChart,
-                  label: 'Progreso',
+                  icon: LucideIcons.ruler,
+                  label: 'Medidas',
                   isSelected: selectedIndex == 3,
                   onTap: () => _onItemTapped(3, context),
                 ),

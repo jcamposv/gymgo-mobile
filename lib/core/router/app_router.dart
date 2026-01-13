@@ -12,6 +12,8 @@ import '../../features/classes/presentation/screens/classes_screen.dart';
 import '../../features/workouts/presentation/screens/workouts_screen.dart';
 import '../../features/progress/presentation/screens/progress_screen.dart';
 import '../../features/measurements/presentation/screens/measurements_screen.dart';
+import '../../features/routines/presentation/screens/routines_screen.dart';
+import '../../features/routines/presentation/screens/routine_detail_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../services/notification_service.dart';
 import 'routes.dart';
@@ -80,6 +82,20 @@ final routerProvider = Provider<GoRouter>((ref) {
         ),
       ),
 
+      // Routine detail (full screen, no bottom nav)
+      GoRoute(
+        path: '/member/routines/:id',
+        name: Routes.memberRoutineDetailName,
+        pageBuilder: (context, state) {
+          final routineId = state.pathParameters['id']!;
+          return _buildPageWithTransition(
+            context,
+            state,
+            RoutineDetailScreen(routineId: routineId),
+          );
+        },
+      ),
+
       // Main app shell with bottom navigation
       ShellRoute(
         navigatorKey: shellNavigatorKey,
@@ -110,6 +126,15 @@ final routerProvider = Provider<GoRouter>((ref) {
               context,
               state,
               const WorkoutsScreen(),
+            ),
+          ),
+          GoRoute(
+            path: Routes.memberRoutines,
+            name: Routes.memberRoutinesName,
+            pageBuilder: (context, state) => _buildPageWithTransition(
+              context,
+              state,
+              const RoutinesScreen(),
             ),
           ),
           GoRoute(

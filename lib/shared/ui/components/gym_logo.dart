@@ -70,7 +70,7 @@ class GymLogo extends ConsumerWidget {
   Widget _buildDefaultLogo() {
     final assetPath = variant == GymLogoVariant.icon
         ? 'assets/images/gymgo_icon.svg'
-        : 'assets/images/gymgo_logo.svg';
+        : 'assets/images/default_logo.svg';
 
     return SvgPicture.asset(
       assetPath,
