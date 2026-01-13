@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/services/notification_service.dart';
 import '../../core/services/push_token_repository.dart';
 import '../../features/classes/presentation/providers/classes_providers.dart';
+import '../../features/notifications/presentation/providers/inbox_providers.dart';
 
 /// Provider for PushTokenRepository
 final pushTokenRepositoryProvider = Provider<PushTokenRepository>((ref) {
@@ -53,6 +54,9 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
       // Set up foreground notification callback
       NotificationService.instance.setOnForegroundNotification(_handleForegroundNotification);
 
+      // Initialize notifications inbox
+      await _ref.read(inboxProvider.notifier).initialize();
+
       state = state.copyWith(
         isInitialized: true,
         isLoading: false,
@@ -74,8 +78,11 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
     // Update foreground notification provider for UI
     _ref.read(foregroundNotificationProvider.notifier).state = message;
 
+    // Save notification to inbox
+    _ref.read(inboxProvider.notifier).addFromRemoteMessage(message);
+
     // Refresh classes if it's a class-related notification
-    final type = message.data['type'];
+    final type = message.data['type'] as String?;
     if (_isClassRelatedNotification(type)) {
       _ref.invalidate(classesProvider);
       _ref.invalidate(nextUserClassProvider);

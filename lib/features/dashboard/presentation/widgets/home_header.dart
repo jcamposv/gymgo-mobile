@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/config/avatars.dart';
+import '../../../../core/router/routes.dart';
 import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../core/theme/gymgo_typography.dart';
@@ -11,6 +13,7 @@ import '../../../../shared/models/member.dart';
 import '../../../../shared/ui/components/components.dart';
 import '../../../../shared/providers/branding_providers.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../../../notifications/presentation/providers/inbox_providers.dart';
 
 /// Home header with gym logo, greeting, and user avatar
 class HomeHeader extends ConsumerStatefulWidget {
@@ -61,6 +64,7 @@ class _HomeHeaderState extends ConsumerState<HomeHeader> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final brandingAsync = ref.watch(gymBrandingProvider);
+    final unreadCount = ref.watch(unreadCountProvider);
     final userName = _member?.name ?? _extractUserName(user?.email);
     final greeting = _getGreeting();
     final gymName = brandingAsync.whenOrNull(data: (b) => b.gymName);
@@ -119,10 +123,17 @@ class _HomeHeaderState extends ConsumerState<HomeHeader> {
           ),
 
           // Notifications button
-          _buildIconButton(
-            icon: LucideIcons.bell,
-            onTap: widget.onNotificationsTap,
-            hasBadge: false, // TODO: Connect to notifications count
+          Semantics(
+            label: unreadCount > 0
+                ? 'Notificaciones, $unreadCount sin leer'
+                : 'Notificaciones',
+            button: true,
+            child: _buildIconButton(
+              icon: LucideIcons.bell,
+              onTap: () => context.push(Routes.notifications),
+              hasBadge: unreadCount > 0,
+              badgeCount: unreadCount,
+            ),
           ),
 
           const SizedBox(width: GymGoSpacing.xs),
@@ -138,6 +149,7 @@ class _HomeHeaderState extends ConsumerState<HomeHeader> {
     required IconData icon,
     VoidCallback? onTap,
     bool hasBadge = false,
+    int badgeCount = 0,
   }) {
     return GestureDetector(
       onTap: onTap,
@@ -153,6 +165,7 @@ class _HomeHeaderState extends ConsumerState<HomeHeader> {
           ),
         ),
         child: Stack(
+          clipBehavior: Clip.none,
           children: [
             Center(
               child: Icon(
@@ -163,14 +176,28 @@ class _HomeHeaderState extends ConsumerState<HomeHeader> {
             ),
             if (hasBadge)
               Positioned(
-                right: 8,
-                top: 8,
+                right: -2,
+                top: -2,
                 child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
+                  padding: EdgeInsets.all(badgeCount > 9 ? 2 : 4),
+                  constraints: const BoxConstraints(
+                    minWidth: 16,
+                    minHeight: 16,
+                  ),
+                  decoration: BoxDecoration(
                     color: GymGoColors.error,
-                    shape: BoxShape.circle,
+                    shape: badgeCount > 9 ? BoxShape.rectangle : BoxShape.circle,
+                    borderRadius: badgeCount > 9 ? BorderRadius.circular(8) : null,
+                  ),
+                  child: Center(
+                    child: Text(
+                      badgeCount > 99 ? '99+' : badgeCount.toString(),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                   ),
                 ),
               ),

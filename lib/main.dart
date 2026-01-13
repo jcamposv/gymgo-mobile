@@ -3,9 +3,11 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'core/config/supabase_config.dart';
 import 'core/services/notification_service.dart';
+import 'features/notifications/presentation/providers/inbox_providers.dart';
 import 'firebase_options.dart';
 
 /// Firebase background message handler - MUST be top-level function
@@ -56,10 +58,18 @@ void main() async {
   // Initialize Supabase
   await SupabaseConfig.initialize();
 
+  // Initialize SharedPreferences for notifications inbox
+  final sharedPreferences = await SharedPreferences.getInstance();
+  debugPrint('SharedPreferences initialized');
+
   // Run app with Riverpod
   runApp(
-    const ProviderScope(
-      child: GymGoApp(),
+    ProviderScope(
+      overrides: [
+        // Override SharedPreferences provider with the instance
+        sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+      ],
+      child: const GymGoApp(),
     ),
   );
 }

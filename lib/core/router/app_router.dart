@@ -14,6 +14,7 @@ import '../../features/progress/presentation/screens/progress_screen.dart';
 import '../../features/measurements/presentation/screens/measurements_screen.dart';
 import '../../features/routines/presentation/screens/routines_screen.dart';
 import '../../features/routines/presentation/screens/routine_detail_screen.dart';
+import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../services/notification_service.dart';
 import 'routes.dart';
@@ -94,6 +95,17 @@ final routerProvider = Provider<GoRouter>((ref) {
             RoutineDetailScreen(routineId: routineId),
           );
         },
+      ),
+
+      // Notifications (full screen, no bottom nav)
+      GoRoute(
+        path: Routes.notifications,
+        name: Routes.notificationsName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const NotificationsScreen(),
+        ),
       ),
 
       // Main app shell with bottom navigation
