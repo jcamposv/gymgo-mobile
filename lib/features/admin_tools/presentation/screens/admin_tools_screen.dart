@@ -10,6 +10,8 @@ import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../core/theme/gymgo_typography.dart';
 import '../../../../shared/providers/role_providers.dart';
 import '../../../../shared/ui/components/components.dart';
+import '../../../classes/presentation/providers/templates_providers.dart';
+import '../../../classes/presentation/widgets/generate_classes_sheet.dart';
 import '../widgets/admin_action_card.dart';
 
 /// Admin Tools screen with quick action cards
@@ -163,6 +165,15 @@ class AdminToolsScreen extends ConsumerWidget {
                   description: 'Programar sesión',
                   color: GymGoColors.info,
                   onTap: () => context.push(Routes.adminCreateClass),
+                ),
+
+                // Generate Classes - NEW
+                AdminActionCard(
+                  icon: LucideIcons.sparkles,
+                  title: 'Generar\nClases',
+                  description: 'Desde plantillas',
+                  color: const Color(0xFF9333EA), // Purple
+                  onTap: () => _showGenerateClasses(context, ref),
                 ),
 
                 // Templates
@@ -345,5 +356,49 @@ class AdminToolsScreen extends ConsumerWidget {
         behavior: SnackBarBehavior.floating,
       ),
     );
+  }
+
+  Future<void> _showGenerateClasses(BuildContext context, WidgetRef ref) async {
+    final result = await GenerateClassesSheet.show(context);
+
+    if (result != null && result.success && context.mounted) {
+      // Show success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(LucideIcons.checkCircle2, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Expanded(child: Text(result.message)),
+            ],
+          ),
+          backgroundColor: GymGoColors.success,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(GymGoSpacing.md),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
+          ),
+        ),
+      );
+
+      // Show individual errors if any
+      if (result.hasErrors) {
+        for (final error in result.errors.take(3)) {
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(error),
+                backgroundColor: GymGoColors.warning,
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 4),
+              ),
+            );
+          }
+        }
+      }
+
+      // Refresh templates
+      ref.invalidate(templatesProvider);
+    }
   }
 }

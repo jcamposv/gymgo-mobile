@@ -13,6 +13,7 @@ class GymGoCard extends StatelessWidget {
     this.backgroundColor,
     this.borderColor,
     this.onTap,
+    this.onLongPress,
     this.elevation = 0,
   });
 
@@ -23,6 +24,7 @@ class GymGoCard extends StatelessWidget {
   final Color? backgroundColor;
   final Color? borderColor;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final double elevation;
 
   @override
@@ -52,9 +54,10 @@ class GymGoCard extends StatelessWidget {
       ),
     );
 
-    if (onTap != null) {
+    if (onTap != null || onLongPress != null) {
       return InkWell(
         onTap: onTap,
+        onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(borderRadius ?? GymGoSpacing.radiusLg),
         child: card,
       );
