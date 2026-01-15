@@ -17,12 +17,14 @@ import '../../features/routines/presentation/screens/routine_detail_screen.dart'
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/admin_tools/presentation/screens/admin_tools_screen.dart';
-import '../../features/admin_tools/presentation/screens/register_payment_screen.dart';
 import '../../features/admin_tools/presentation/screens/create_class_screen.dart';
 import '../../features/admin_tools/presentation/screens/templates_screen.dart';
-import '../../features/admin_tools/presentation/screens/finance_summary_screen.dart';
 import '../../features/admin_tools/presentation/screens/members_list_screen.dart';
 import '../../features/admin_tools/presentation/screens/check_in_screen.dart';
+import '../../features/finances/presentation/screens/finances_screen.dart';
+import '../../features/finances/presentation/screens/create_payment_screen.dart';
+import '../../features/finances/presentation/screens/create_expense_screen.dart';
+import '../../features/finances/presentation/screens/create_income_screen.dart';
 import '../services/notification_service.dart';
 import 'routes.dart';
 
@@ -131,7 +133,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => _buildPageWithTransition(
           context,
           state,
-          const RegisterPaymentScreen(),
+          const CreatePaymentScreen(),
         ),
       ),
       GoRoute(
@@ -158,7 +160,34 @@ final routerProvider = Provider<GoRouter>((ref) {
         pageBuilder: (context, state) => _buildPageWithTransition(
           context,
           state,
-          const FinanceSummaryScreen(),
+          const FinancesScreen(),
+        ),
+      ),
+      GoRoute(
+        path: Routes.adminCreatePayment,
+        name: Routes.adminCreatePaymentName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const CreatePaymentScreen(),
+        ),
+      ),
+      GoRoute(
+        path: Routes.adminCreateExpense,
+        name: Routes.adminCreateExpenseName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const CreateExpenseScreen(),
+        ),
+      ),
+      GoRoute(
+        path: Routes.adminCreateIncome,
+        name: Routes.adminCreateIncomeName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const CreateIncomeScreen(),
         ),
       ),
       GoRoute(

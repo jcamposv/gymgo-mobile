@@ -3,6 +3,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
 import 'core/config/supabase_config.dart';
@@ -57,6 +58,9 @@ void main() async {
 
   // Initialize Supabase
   await SupabaseConfig.initialize();
+
+  // Initialize date formatting for Spanish locale
+  await initializeDateFormatting('es', null);
 
   // Initialize SharedPreferences for notifications inbox
   final sharedPreferences = await SharedPreferences.getInstance();

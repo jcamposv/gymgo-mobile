@@ -26,6 +26,9 @@ class Routes {
   static const String adminCreateClass = '/admin/create-class';
   static const String adminTemplates = '/admin/templates';
   static const String adminFinances = '/admin/finances';
+  static const String adminCreatePayment = '/admin/finances/create-payment';
+  static const String adminCreateExpense = '/admin/finances/create-expense';
+  static const String adminCreateIncome = '/admin/finances/create-income';
   static const String adminMembers = '/admin/members';
   static const String adminCheckIn = '/admin/check-in';
 
@@ -49,6 +52,9 @@ class Routes {
   static const String adminCreateClassName = 'admin-create-class';
   static const String adminTemplatesName = 'admin-templates';
   static const String adminFinancesName = 'admin-finances';
+  static const String adminCreatePaymentName = 'admin-create-payment';
+  static const String adminCreateExpenseName = 'admin-create-expense';
+  static const String adminCreateIncomeName = 'admin-create-income';
   static const String adminMembersName = 'admin-members';
   static const String adminCheckInName = 'admin-check-in';
 }
