@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../../core/router/routes.dart';
 import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../shared/providers/branding_providers.dart';
+import '../../../../shared/providers/role_providers.dart';
 import '../../../classes/presentation/providers/classes_providers.dart';
 import '../../../measurements/presentation/providers/measurements_providers.dart';
 import '../../../profile/presentation/providers/member_providers.dart';
+import '../widgets/admin_tools_card.dart';
 import '../widgets/home_header.dart';
 import '../widgets/next_class_card.dart';
 import '../widgets/today_workout_card.dart';
@@ -22,6 +25,8 @@ class HomeDashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Watch the next user class from Supabase
     final nextClassAsync = ref.watch(nextUserClassProvider);
+    // Watch user profile for role-based UI
+    final profileAsync = ref.watch(userProfileProvider);
 
     return Scaffold(
       backgroundColor: GymGoColors.background,
@@ -73,6 +78,22 @@ class HomeDashboardScreen extends ConsumerWidget {
                   ],
                 ).animate().fadeIn(duration: 300.ms, delay: 100.ms),
               ),
+
+              // Admin Tools Card (only for admin/assistant roles)
+              if (profileAsync.valueOrNull?.canAccessAdminTools == true)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.only(
+                      left: GymGoSpacing.screenHorizontal,
+                      right: GymGoSpacing.screenHorizontal,
+                      top: GymGoSpacing.lg,
+                    ),
+                    child: AdminToolsCard(
+                      role: profileAsync.value!.role,
+                      onTap: () => context.push(Routes.adminTools),
+                    ).animate().fadeIn(duration: 300.ms, delay: 150.ms),
+                  ),
+                ),
 
               const SliverToBoxAdapter(
                 child: SizedBox(height: GymGoSpacing.xl),

@@ -16,6 +16,13 @@ import '../../features/routines/presentation/screens/routines_screen.dart';
 import '../../features/routines/presentation/screens/routine_detail_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/admin_tools/presentation/screens/admin_tools_screen.dart';
+import '../../features/admin_tools/presentation/screens/register_payment_screen.dart';
+import '../../features/admin_tools/presentation/screens/create_class_screen.dart';
+import '../../features/admin_tools/presentation/screens/templates_screen.dart';
+import '../../features/admin_tools/presentation/screens/finance_summary_screen.dart';
+import '../../features/admin_tools/presentation/screens/members_list_screen.dart';
+import '../../features/admin_tools/presentation/screens/check_in_screen.dart';
 import '../services/notification_service.dart';
 import 'routes.dart';
 
@@ -105,6 +112,71 @@ final routerProvider = Provider<GoRouter>((ref) {
           context,
           state,
           const NotificationsScreen(),
+        ),
+      ),
+
+      // Admin Tools routes (full screen, no bottom nav)
+      GoRoute(
+        path: Routes.adminTools,
+        name: Routes.adminToolsName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const AdminToolsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: Routes.adminRegisterPayment,
+        name: Routes.adminRegisterPaymentName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const RegisterPaymentScreen(),
+        ),
+      ),
+      GoRoute(
+        path: Routes.adminCreateClass,
+        name: Routes.adminCreateClassName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const CreateClassScreen(),
+        ),
+      ),
+      GoRoute(
+        path: Routes.adminTemplates,
+        name: Routes.adminTemplatesName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const TemplatesScreen(),
+        ),
+      ),
+      GoRoute(
+        path: Routes.adminFinances,
+        name: Routes.adminFinancesName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const FinanceSummaryScreen(),
+        ),
+      ),
+      GoRoute(
+        path: Routes.adminMembers,
+        name: Routes.adminMembersName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const MembersListScreen(),
+        ),
+      ),
+      GoRoute(
+        path: Routes.adminCheckIn,
+        name: Routes.adminCheckInName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const CheckInScreen(),
         ),
       ),
 
