@@ -4,7 +4,19 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../core/theme/gymgo_typography.dart';
-import '../../domain/gym_class.dart';
+
+/// Simple member data for avatar display
+class EnrolledMember {
+  const EnrolledMember({
+    required this.id,
+    this.avatarUrl,
+    this.fullName,
+  });
+
+  final String id;
+  final String? avatarUrl;
+  final String? fullName;
+}
 
 /// Grid of enrolled member avatars showing capacity slots (matching reference design)
 class EnrolledAvatarsGrid extends StatelessWidget {
@@ -19,7 +31,7 @@ class EnrolledAvatarsGrid extends StatelessWidget {
     this.onTap,
   });
 
-  final List<Member> members;
+  final List<EnrolledMember> members;
   final int capacity;
   final int maxVisible;
   final double avatarSize;
@@ -84,7 +96,7 @@ class _AvatarItem extends StatelessWidget {
     required this.size,
   });
 
-  final Member member;
+  final EnrolledMember member;
   final double size;
 
   @override
@@ -173,7 +185,7 @@ class EnrolledAvatarsStack extends StatelessWidget {
     this.onTap,
   });
 
-  final List<Member> members;
+  final List<EnrolledMember> members;
   final int maxVisible;
   final double avatarSize;
   final double overlap;

@@ -233,7 +233,8 @@ class AdminToolsScreen extends ConsumerWidget {
                     icon: LucideIcons.calendar,
                     label: 'Ver clases',
                     description: 'Agenda completa',
-                    onTap: () => context.push(Routes.memberClasses),
+                    // Use go() to navigate to ShellRoute pages to avoid duplicate key issues
+                    onTap: () => context.go(Routes.memberClasses),
                   ),
                   const Divider(height: 1, color: GymGoColors.cardBorder),
                   _buildToolListItem(
@@ -362,14 +363,23 @@ class AdminToolsScreen extends ConsumerWidget {
     final result = await GenerateClassesSheet.show(context);
 
     if (result != null && result.success && context.mounted) {
-      // Show success message
+      // Clear any existing snackbars first
+      ScaffoldMessenger.of(context).clearSnackBars();
+
+      // Build message with errors if any
+      String message = result.message;
+      if (result.hasErrors) {
+        message += '\n(${result.errors.length} advertencias)';
+      }
+
+      // Show single success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
               const Icon(LucideIcons.checkCircle2, color: Colors.white, size: 18),
               const SizedBox(width: 8),
-              Expanded(child: Text(result.message)),
+              Expanded(child: Text(message)),
             ],
           ),
           backgroundColor: GymGoColors.success,
@@ -380,22 +390,6 @@ class AdminToolsScreen extends ConsumerWidget {
           ),
         ),
       );
-
-      // Show individual errors if any
-      if (result.hasErrors) {
-        for (final error in result.errors.take(3)) {
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(error),
-                backgroundColor: GymGoColors.warning,
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 4),
-              ),
-            );
-          }
-        }
-      }
 
       // Refresh templates
       ref.invalidate(templatesProvider);

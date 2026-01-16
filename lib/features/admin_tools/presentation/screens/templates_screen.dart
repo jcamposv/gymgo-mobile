@@ -53,14 +53,23 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
     final result = await GenerateClassesSheet.show(context);
 
     if (result != null && result.success && mounted) {
-      // Show success message
+      // Clear any existing snackbars first
+      ScaffoldMessenger.of(context).clearSnackBars();
+
+      // Build message with errors if any
+      String message = result.message;
+      if (result.hasErrors) {
+        message += '\n(${result.errors.length} advertencias)';
+      }
+
+      // Show single success message
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
               const Icon(LucideIcons.checkCircle2, color: Colors.white, size: 18),
               const SizedBox(width: 8),
-              Expanded(child: Text(result.message)),
+              Expanded(child: Text(message)),
             ],
           ),
           backgroundColor: GymGoColors.success,
@@ -71,22 +80,6 @@ class _TemplatesScreenState extends ConsumerState<TemplatesScreen> {
           ),
         ),
       );
-
-      // Show individual errors if any
-      if (result.hasErrors) {
-        for (final error in result.errors.take(3)) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(error),
-                backgroundColor: GymGoColors.warning,
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 4),
-              ),
-            );
-          }
-        }
-      }
 
       // Refresh templates list
       ref.invalidate(templatesProvider);

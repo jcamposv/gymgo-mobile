@@ -19,6 +19,7 @@ class GenerateClassesSheet extends ConsumerStatefulWidget {
     return showModalBottomSheet<GenerationResult>(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true, // Use root navigator to avoid go_router conflicts
       backgroundColor: GymGoColors.background,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
@@ -80,9 +81,8 @@ class _GenerateClassesSheetState extends ConsumerState<GenerateClassesSheet> {
         _result = result;
       });
 
-      if (result != null && result.success) {
-        // Return result and close
-        Navigator.of(context).pop(result);
+      if (result != null && result.success && mounted) {
+        Navigator.of(context, rootNavigator: true).pop(result);
       }
     }
   }
@@ -93,6 +93,7 @@ class _GenerateClassesSheetState extends ConsumerState<GenerateClassesSheet> {
   }) async {
     final result = await showDialog<bool>(
       context: context,
+      useRootNavigator: true, // Use root navigator to avoid go_router conflicts
       builder: (context) => AlertDialog(
         backgroundColor: GymGoColors.surface,
         shape: RoundedRectangleBorder(
@@ -210,7 +211,7 @@ class _GenerateClassesSheetState extends ConsumerState<GenerateClassesSheet> {
                   ),
                 ),
                 IconButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () => Navigator.of(context, rootNavigator: true).pop(),
                   icon: const Icon(LucideIcons.x),
                   iconSize: 20,
                   color: GymGoColors.textSecondary,
@@ -676,7 +677,7 @@ class _GenerateClassesSheetState extends ConsumerState<GenerateClassesSheet> {
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: _isGenerating ? null : () => Navigator.of(context).pop(),
+                onPressed: _isGenerating ? null : () => Navigator.of(context, rootNavigator: true).pop(),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: GymGoSpacing.sm),
                   side: BorderSide(color: GymGoColors.cardBorder),

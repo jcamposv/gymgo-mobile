@@ -296,13 +296,17 @@ bool _isAuthRoute(String path) {
 }
 
 /// Build page with fade transition
+/// Uses ValueKey with full URI to ensure unique page keys
 CustomTransitionPage<void> _buildPageWithTransition(
   BuildContext context,
   GoRouterState state,
   Widget child,
 ) {
+  // Use full URI including query params to ensure unique keys
+  final key = ValueKey('${state.matchedLocation}_${state.uri}');
+
   return CustomTransitionPage<void>(
-    key: state.pageKey,
+    key: key,
     child: child,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
       return FadeTransition(

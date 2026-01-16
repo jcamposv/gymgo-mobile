@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -6,7 +5,6 @@ import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../core/theme/gymgo_typography.dart';
 import '../../domain/gym_class.dart';
-import 'enrolled_avatars_grid.dart';
 
 /// Class session card matching the reference design
 /// Shows class name, time, instructor, enrolled avatars grid with capacity slots
@@ -122,15 +120,14 @@ class ClassSessionCard extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(GymGoSpacing.radiusSm - 1),
-            child: gymClass.instructorAvatarUrl != null &&
-                   gymClass.instructorAvatarUrl!.isNotEmpty
-                ? CachedNetworkImage(
-                    imageUrl: gymClass.instructorAvatarUrl!,
-                    fit: BoxFit.cover,
-                    placeholder: (_, __) => _buildInstructorPlaceholder(),
-                    errorWidget: (_, __, ___) => _buildInstructorPlaceholder(),
-                  )
-                : _buildInstructorPlaceholder(),
+            child: _buildInstructorPlaceholder(),
+          ),
+        ),
+        const SizedBox(width: GymGoSpacing.sm),
+        Text(
+          gymClass.instructorName,
+          style: GymGoTypography.labelMedium.copyWith(
+            color: GymGoColors.textSecondary,
           ),
         ),
       ],
@@ -151,12 +148,29 @@ class ClassSessionCard extends StatelessWidget {
   }
 
   Widget _buildAvatarsSection() {
-    return EnrolledAvatarsGrid(
-      members: gymClass.enrolledMembers,
-      capacity: gymClass.maxCapacity,
-      maxVisible: 18,
-      avatarSize: 48,
-      spacing: 6,
+    // Display capacity info without enrolled members list
+    return Row(
+      children: [
+        Icon(
+          LucideIcons.users,
+          size: 16,
+          color: GymGoColors.textSecondary,
+        ),
+        const SizedBox(width: GymGoSpacing.sm),
+        Text(
+          '${gymClass.currentParticipants}/${gymClass.maxCapacity}',
+          style: GymGoTypography.labelMedium.copyWith(
+            color: GymGoColors.textSecondary,
+          ),
+        ),
+        const SizedBox(width: GymGoSpacing.sm),
+        Text(
+          'inscritos',
+          style: GymGoTypography.labelSmall.copyWith(
+            color: GymGoColors.textTertiary,
+          ),
+        ),
+      ],
     );
   }
 
