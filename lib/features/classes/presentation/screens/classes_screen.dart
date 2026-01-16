@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import '../../../../core/router/routes.dart';
 import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../core/theme/gymgo_typography.dart';
@@ -290,15 +288,15 @@ class ClassesScreen extends ConsumerWidget {
     } on DailyClassLimitException catch (e) {
       // Handle daily limit reached (WEB contract)
       if (context.mounted) {
-        await DailyLimitDialog.show(
+        final wantsToViewReservations = await DailyLimitDialog.show(
           context,
           exception: e,
-          onViewReservations: () {
-            // Navigate to member classes route to show today's reservations
-            // This matches WEB behavior "Ver mis reservas de hoy"
-            context.go(Routes.memberClasses);
-          },
         );
+        // Navigation happens after dialog is closed
+        if (wantsToViewReservations && context.mounted) {
+          // Already on classes screen, just refresh to show today's reservations
+          ref.invalidate(classesProvider);
+        }
       }
     } catch (e) {
       if (context.mounted) {

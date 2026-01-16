@@ -17,40 +17,30 @@ class DailyLimitDialog extends StatelessWidget {
   const DailyLimitDialog({
     super.key,
     required this.exception,
-    this.onViewReservations,
-    this.onClose,
     this.isStaffView = false,
   });
 
   /// The exception containing limit details
   final DailyClassLimitException exception;
 
-  /// Callback when "Ver mis reservas" is tapped
-  final VoidCallback? onViewReservations;
-
-  /// Callback when dialog is closed
-  final VoidCallback? onClose;
-
   /// Whether this is shown in staff context (for a member)
   final bool isStaffView;
 
-  /// Show the dialog
-  static Future<void> show(
+  /// Show the dialog and return true if user wants to view reservations
+  static Future<bool> show(
     BuildContext context, {
     required DailyClassLimitException exception,
-    VoidCallback? onViewReservations,
     bool isStaffView = false,
-  }) {
-    return showDialog(
+  }) async {
+    final result = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
-      builder: (context) => DailyLimitDialog(
+      builder: (dialogContext) => DailyLimitDialog(
         exception: exception,
-        onViewReservations: onViewReservations,
-        onClose: () => Navigator.of(context).pop(),
         isStaffView: isStaffView,
       ),
     );
+    return result ?? false;
   }
 
   @override
@@ -138,24 +128,16 @@ class DailyLimitDialog extends StatelessWidget {
 
             const SizedBox(height: GymGoSpacing.xl),
 
-            // Actions
-            if (onViewReservations != null) ...[
-              GymGoPrimaryButton(
-                text: isStaffView ? 'Ver reservas del miembro' : 'Ver mis reservas',
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  onViewReservations?.call();
-                },
-              ),
-              const SizedBox(height: GymGoSpacing.sm),
-            ],
+            // Actions - return true for view reservations, false for close
+            GymGoPrimaryButton(
+              text: isStaffView ? 'Ver reservas del miembro' : 'Ver mis reservas',
+              onPressed: () => Navigator.of(context).pop(true),
+            ),
+            const SizedBox(height: GymGoSpacing.sm),
 
             GymGoSecondaryButton(
               text: 'Cerrar',
-              onPressed: () {
-                Navigator.of(context).pop();
-                onClose?.call();
-              },
+              onPressed: () => Navigator.of(context).pop(false),
             ),
           ],
         ),
@@ -226,15 +208,14 @@ class DailyLimitDialog extends StatelessWidget {
 /// Helper extension to show daily limit dialog from exception
 extension DailyLimitDialogExtension on BuildContext {
   /// Show daily limit reached dialog
-  Future<void> showDailyLimitDialog(
+  /// Returns true if user wants to view reservations
+  Future<bool> showDailyLimitDialog(
     DailyClassLimitException exception, {
-    VoidCallback? onViewReservations,
     bool isStaffView = false,
   }) {
     return DailyLimitDialog.show(
       this,
       exception: exception,
-      onViewReservations: onViewReservations,
       isStaffView: isStaffView,
     );
   }
