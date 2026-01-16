@@ -69,12 +69,14 @@ class GymLogo extends ConsumerWidget {
 
   Widget _buildDefaultLogo() {
     final assetPath = variant == GymLogoVariant.icon
-        ? 'assets/images/gymgo_icon.svg'
+        ? 'assets/images/gymgo-icon.svg'
         : 'assets/images/default_logo.svg';
 
     return SvgPicture.asset(
       assetPath,
       height: height,
+      fit: BoxFit.contain,
+      alignment: Alignment.center,
       colorFilter: color != null
           ? ColorFilter.mode(color!, BlendMode.srcIn)
           : null,
@@ -125,12 +127,14 @@ class GymLogoStatic extends StatelessWidget {
 
   Widget _buildDefaultLogo() {
     final assetPath = variant == GymLogoVariant.icon
-        ? 'assets/images/gymgo_icon.svg'
-        : 'assets/images/gymgo_logo.svg';
+        ? 'assets/images/gymgo-icon.svg'
+        : 'assets/images/gymgo-logo.svg';
 
     return SvgPicture.asset(
       assetPath,
       height: height,
+      fit: BoxFit.contain,
+      alignment: Alignment.center,
       colorFilter: color != null
           ? ColorFilter.mode(color!, BlendMode.srcIn)
           : null,
