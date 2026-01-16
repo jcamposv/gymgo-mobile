@@ -2,6 +2,9 @@
 class Routes {
   Routes._();
 
+  // Splash route
+  static const String splash = '/';
+
   // Auth routes
   static const String login = '/login';
   static const String forgotPassword = '/forgot-password';
@@ -39,6 +42,7 @@ class Routes {
   static const String adminCheckIn = '/admin/check-in';
 
   // Route names for navigation
+  static const String splashName = 'splash';
   static const String loginName = 'login';
   static const String forgotPasswordName = 'forgot-password';
   static const String resetPasswordName = 'reset-password';

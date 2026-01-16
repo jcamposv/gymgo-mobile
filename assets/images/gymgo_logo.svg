@@ -1,8 +1,0 @@
-<svg width="120" height="32" viewBox="0 0 120 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <!-- Dumbbell icon -->
-  <rect x="2" y="10" width="6" height="12" rx="1" fill="#CDFF00"/>
-  <rect x="8" y="13" width="10" height="6" rx="1" fill="#CDFF00"/>
-  <rect x="18" y="10" width="6" height="12" rx="1" fill="#CDFF00"/>
-  <!-- GymGo text -->
-  <text x="32" y="23" font-family="system-ui, -apple-system, sans-serif" font-size="18" font-weight="700" fill="#FFFFFF">GymGo</text>
-</svg>

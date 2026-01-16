@@ -6,6 +6,7 @@ import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/reset_password_screen.dart';
+import '../../splash/splash_screen.dart';
 import '../../features/dashboard/presentation/screens/home_dashboard_screen.dart';
 import '../../features/dashboard/presentation/screens/main_shell.dart';
 import '../../features/classes/presentation/screens/classes_screen.dart';
@@ -41,7 +42,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     navigatorKey: rootNavigatorKey,
-    initialLocation: Routes.login,
+    initialLocation: Routes.splash,
     debugLogDiagnostics: true,
     refreshListenable: RouterRefreshNotifier(ref),
     redirect: (context, state) {
@@ -67,6 +68,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      // Splash screen (initial route)
+      GoRoute(
+        path: Routes.splash,
+        name: Routes.splashName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const SplashScreen(),
+        ),
+      ),
+
       // Auth routes (no bottom nav)
       GoRoute(
         path: Routes.login,
@@ -330,9 +342,10 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-/// Check if route is an auth route
+/// Check if route is an auth route (or splash)
 bool _isAuthRoute(String path) {
-  return path == Routes.login ||
+  return path == Routes.splash ||
+      path == Routes.login ||
       path == Routes.forgotPassword ||
       path == Routes.resetPassword;
 }
