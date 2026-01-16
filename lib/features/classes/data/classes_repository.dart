@@ -1,13 +1,22 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/gym_class.dart';
+import '../domain/booking_limit.dart';
+import '../../../shared/data/organization_settings_repository.dart';
+import 'booking_limit_service.dart';
 
 /// Repository for class/reservation operations with Supabase
 /// Uses the schema: classes, bookings, members tables
 class ClassesRepository {
-  ClassesRepository(this._supabase);
+  ClassesRepository(this._supabase, {OrganizationSettingsRepository? settingsRepository})
+      : _settingsRepository = settingsRepository ?? OrganizationSettingsRepository(_supabase);
 
   final SupabaseClient _supabase;
+  final OrganizationSettingsRepository _settingsRepository;
+
+  /// Get the booking limit service
+  BookingLimitService get _bookingLimitService =>
+      BookingLimitService(_supabase, _settingsRepository);
 
   /// Get the organization ID for the current user from profiles
   Future<String?> _getOrganizationId() async {
@@ -134,22 +143,31 @@ class ClassesRepository {
   }
 
   /// Reserve a spot in a class
+  ///
+  /// Validates:
+  /// 1. User is authenticated as a member
+  /// 2. Class has capacity
+  /// 3. User doesn't already have a booking
+  /// 4. Daily booking limit not exceeded (WEB contract)
+  ///
+  /// Throws [DailyClassLimitException] if daily limit is reached.
   Future<void> reserveClass(String classId) async {
     final memberId = await _getMemberId();
     if (memberId == null) {
       throw Exception('Usuario no autenticado o no es miembro');
     }
 
-    // Get class info
+    // Get class info including start_time for daily limit check
     final classData = await _supabase
         .from('classes')
-        .select('max_capacity, current_bookings, organization_id')
+        .select('max_capacity, current_bookings, organization_id, start_time')
         .eq('id', classId)
         .single();
 
     final maxCapacity = classData['max_capacity'] as int? ?? 20;
     final currentBookings = classData['current_bookings'] as int? ?? 0;
     final organizationId = classData['organization_id'] as String;
+    final classStartTime = DateTime.parse(classData['start_time'] as String);
 
     if (currentBookings >= maxCapacity) {
       throw Exception('La clase está llena');
@@ -166,6 +184,98 @@ class ClassesRepository {
 
     if (existingBooking != null) {
       throw Exception('Ya tienes una reserva para esta clase');
+    }
+
+    // --- DAILY LIMIT VALIDATION (WEB Contract) ---
+    final limitCheck = await _bookingLimitService.checkDailyLimit(
+      memberId: memberId,
+      organizationId: organizationId,
+      classStartTime: classStartTime,
+    );
+
+    if (!limitCheck.canBook) {
+      debugPrint('ClassesRepository: Daily limit reached - ${limitCheck.currentCount}/${limitCheck.limit}');
+      throw DailyClassLimitException(
+        code: BookingErrorCodes.dailyClassLimitReached,
+        limit: limitCheck.limit!,
+        currentCount: limitCheck.currentCount,
+        targetDate: limitCheck.targetDate,
+        timezone: limitCheck.timezone,
+        existingBookings: limitCheck.existingBookings,
+      );
+    }
+
+    // Create booking
+    await _supabase.from('bookings').insert({
+      'organization_id': organizationId,
+      'class_id': classId,
+      'member_id': memberId,
+      'status': 'confirmed',
+    });
+  }
+
+  /// Reserve a class on behalf of a member (Staff/Admin only).
+  ///
+  /// Used by ADMIN/ASSISTANT/INSTRUCTOR to add members to classes.
+  /// Subject to same daily limit validation unless [bypassDailyLimit] is true.
+  ///
+  /// NOTE: bypassDailyLimit exists for parity with WEB but is NOT used in UI
+  /// per WEB contract analysis.
+  Future<void> reserveClassForMember({
+    required String classId,
+    required String memberId,
+    bool bypassDailyLimit = false,
+  }) async {
+    // Get class info
+    final classData = await _supabase
+        .from('classes')
+        .select('max_capacity, current_bookings, organization_id, start_time')
+        .eq('id', classId)
+        .single();
+
+    final maxCapacity = classData['max_capacity'] as int? ?? 20;
+    final currentBookings = classData['current_bookings'] as int? ?? 0;
+    final organizationId = classData['organization_id'] as String;
+    final classStartTime = DateTime.parse(classData['start_time'] as String);
+
+    if (currentBookings >= maxCapacity) {
+      throw Exception('La clase está llena');
+    }
+
+    // Check if member already has a booking
+    final existingBooking = await _supabase
+        .from('bookings')
+        .select()
+        .eq('class_id', classId)
+        .eq('member_id', memberId)
+        .neq('status', 'cancelled')
+        .maybeSingle();
+
+    if (existingBooking != null) {
+      throw Exception('El miembro ya tiene una reserva para esta clase');
+    }
+
+    // --- DAILY LIMIT VALIDATION (WEB Contract) ---
+    // Only check if not bypassing (matching WEB behavior)
+    if (!bypassDailyLimit) {
+      final limitCheck = await _bookingLimitService.checkDailyLimit(
+        memberId: memberId,
+        organizationId: organizationId,
+        classStartTime: classStartTime,
+      );
+
+      if (!limitCheck.canBook) {
+        debugPrint('ClassesRepository: Daily limit reached for member - ${limitCheck.currentCount}/${limitCheck.limit}');
+        throw DailyClassLimitException(
+          code: BookingErrorCodes.dailyClassLimitReached,
+          limit: limitCheck.limit!,
+          currentCount: limitCheck.currentCount,
+          targetDate: limitCheck.targetDate,
+          timezone: limitCheck.timezone,
+          existingBookings: limitCheck.existingBookings,
+          message: 'El miembro ya tiene ${limitCheck.currentCount} clases reservadas para este día (máximo: ${limitCheck.limit})',
+        );
+      }
     }
 
     // Create booking

@@ -243,6 +243,13 @@ class AdminToolsScreen extends ConsumerWidget {
                     description: 'Registrar asistencia',
                     onTap: () => context.push(Routes.adminCheckIn),
                   ),
+                  const Divider(height: 1, color: GymGoColors.cardBorder),
+                  _buildToolListItem(
+                    icon: LucideIcons.sliders,
+                    label: 'Límites de reserva',
+                    description: 'Max clases por día',
+                    onTap: () => context.push(Routes.adminBookingLimits),
+                  ),
                 ],
               ),
             ),

@@ -1,6 +1,7 @@
 /// GymGo UI Components
 /// Export all reusable components from a single file
 
+export 'daily_limit_dialog.dart';
 export 'gym_logo.dart';
 export 'gymgo_card.dart';
 export 'gymgo_header.dart';

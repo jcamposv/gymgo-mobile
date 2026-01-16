@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
+import '../../../../core/router/routes.dart';
 import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../core/theme/gymgo_typography.dart';
 import '../../../../shared/ui/components/components.dart';
+import '../../domain/booking_limit.dart';
 import '../providers/classes_providers.dart';
+import '../widgets/class_card.dart';
 import '../widgets/day_selector.dart';
 import '../widgets/time_slot_selector.dart';
-import '../widgets/class_card.dart';
 
 /// Classes/Reservations screen with day selector and class list
 class ClassesScreen extends ConsumerWidget {
@@ -283,6 +286,19 @@ class ClassesScreen extends ConsumerWidget {
       await ref.read(classActionsProvider.notifier).reserveClass(classId);
       if (context.mounted) {
         GymGoToast.success(context, 'Reserva confirmada');
+      }
+    } on DailyClassLimitException catch (e) {
+      // Handle daily limit reached (WEB contract)
+      if (context.mounted) {
+        await DailyLimitDialog.show(
+          context,
+          exception: e,
+          onViewReservations: () {
+            // Navigate to member classes route to show today's reservations
+            // This matches WEB behavior "Ver mis reservas de hoy"
+            context.go(Routes.memberClasses);
+          },
+        );
       }
     } catch (e) {
       if (context.mounted) {

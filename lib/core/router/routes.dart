@@ -40,6 +40,7 @@ class Routes {
   static const String adminCreateIncome = '/admin/finances/create-income';
   static const String adminMembers = '/admin/members';
   static const String adminCheckIn = '/admin/check-in';
+  static const String adminBookingLimits = '/admin/booking-limits';
 
   // Route names for navigation
   static const String splashName = 'splash';
@@ -71,4 +72,5 @@ class Routes {
   static const String adminCreateIncomeName = 'admin-create-income';
   static const String adminMembersName = 'admin-members';
   static const String adminCheckInName = 'admin-check-in';
+  static const String adminBookingLimitsName = 'admin-booking-limits';
 }
