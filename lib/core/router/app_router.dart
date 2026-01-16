@@ -48,7 +48,13 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final isAuthenticated = authState is app.Authenticated;
       final isAuthRoute = _isAuthRoute(state.matchedLocation);
+      final isSplash = _isSplashRoute(state.matchedLocation);
       final isResetPassword = state.matchedLocation == Routes.resetPassword;
+
+      // Never redirect away from splash - let animation complete
+      if (isSplash) {
+        return null;
+      }
 
       // Allow reset password route without authentication
       if (isResetPassword) {
@@ -342,12 +348,16 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-/// Check if route is an auth route (or splash)
+/// Check if route is an auth route
 bool _isAuthRoute(String path) {
-  return path == Routes.splash ||
-      path == Routes.login ||
+  return path == Routes.login ||
       path == Routes.forgotPassword ||
       path == Routes.resetPassword;
+}
+
+/// Check if route is splash (no redirect during animation)
+bool _isSplashRoute(String path) {
+  return path == Routes.splash;
 }
 
 /// Build page with fade transition
