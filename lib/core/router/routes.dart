@@ -17,6 +17,12 @@ class Routes {
   static const String memberMeasurements = '/member/measurements';
   static const String profile = '/profile';
 
+  // Profile sub-routes
+  static const String profileNotifications = '/profile/notifications';
+  static const String profileHelpSupport = '/profile/help';
+  static const String profileHelpCenter = '/profile/help/center';
+  static const String profileTerms = '/profile/terms';
+
   // Notifications
   static const String notifications = '/notifications';
 
@@ -44,6 +50,10 @@ class Routes {
   static const String memberProgressName = 'member-progress';
   static const String memberMeasurementsName = 'member-measurements';
   static const String profileName = 'profile';
+  static const String profileNotificationsName = 'profile-notifications';
+  static const String profileHelpSupportName = 'profile-help';
+  static const String profileHelpCenterName = 'profile-help-center';
+  static const String profileTermsName = 'profile-terms';
   static const String notificationsName = 'notifications';
 
   // Admin route names

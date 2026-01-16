@@ -16,6 +16,10 @@ import '../../features/routines/presentation/screens/routines_screen.dart';
 import '../../features/routines/presentation/screens/routine_detail_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
+import '../../features/profile/presentation/screens/notification_settings_screen.dart';
+import '../../features/profile/presentation/screens/help_support_screen.dart';
+import '../../features/profile/presentation/screens/help_center_screen.dart';
+import '../../features/profile/presentation/screens/terms_screen.dart';
 import '../../features/admin_tools/presentation/screens/admin_tools_screen.dart';
 import '../../features/admin_tools/presentation/screens/create_class_screen.dart';
 import '../../features/admin_tools/presentation/screens/templates_screen.dart';
@@ -114,6 +118,44 @@ final routerProvider = Provider<GoRouter>((ref) {
           context,
           state,
           const NotificationsScreen(),
+        ),
+      ),
+
+      // Profile sub-routes (full screen, no bottom nav)
+      GoRoute(
+        path: Routes.profileNotifications,
+        name: Routes.profileNotificationsName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const NotificationSettingsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: Routes.profileHelpSupport,
+        name: Routes.profileHelpSupportName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const HelpSupportScreen(),
+        ),
+      ),
+      GoRoute(
+        path: Routes.profileHelpCenter,
+        name: Routes.profileHelpCenterName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const HelpCenterScreen(),
+        ),
+      ),
+      GoRoute(
+        path: Routes.profileTerms,
+        name: Routes.profileTermsName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const TermsScreen(),
         ),
       ),
 

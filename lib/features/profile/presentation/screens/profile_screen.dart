@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/router/routes.dart';
 import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../core/theme/gymgo_typography.dart';
@@ -11,6 +13,7 @@ import '../../../../shared/models/profile_photo_selection.dart';
 import '../../../../shared/ui/components/components.dart';
 import '../../../../shared/providers/branding_providers.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../widgets/change_password_sheet.dart';
 
 /// Profile screen with user info and settings
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -119,32 +122,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   _SettingsItem(
                     icon: LucideIcons.lock,
                     label: 'Cambiar contraseña',
-                    onTap: () {},
+                    onTap: () => ChangePasswordSheet.show(context),
                   ),
                   _SettingsItem(
                     icon: LucideIcons.bell,
                     label: 'Notificaciones',
-                    onTap: () {},
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: GymGoSpacing.lg),
-
-              _buildSettingsSection(
-                title: 'Preferencias',
-                items: [
-                  _SettingsItem(
-                    icon: LucideIcons.languages,
-                    label: 'Idioma',
-                    trailing: 'Español',
-                    onTap: () {},
-                  ),
-                  _SettingsItem(
-                    icon: LucideIcons.moon,
-                    label: 'Tema oscuro',
-                    trailing: 'Activado',
-                    onTap: () {},
+                    onTap: () => context.push(Routes.profileNotifications),
                   ),
                 ],
               ),
@@ -156,18 +139,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 items: [
                   _SettingsItem(
                     icon: LucideIcons.helpCircle,
-                    label: 'Ayuda',
-                    onTap: () {},
-                  ),
-                  _SettingsItem(
-                    icon: LucideIcons.messageSquare,
-                    label: 'Contactar soporte',
-                    onTap: () {},
+                    label: 'Ayuda y soporte',
+                    onTap: () => context.push(Routes.profileHelpSupport),
                   ),
                   _SettingsItem(
                     icon: LucideIcons.fileText,
                     label: 'Términos y condiciones',
-                    onTap: () {},
+                    onTap: () => context.push(Routes.profileTerms),
                   ),
                 ],
               ),
