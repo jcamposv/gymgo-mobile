@@ -31,6 +31,9 @@ import '../../features/finances/presentation/screens/finances_screen.dart';
 import '../../features/finances/presentation/screens/create_payment_screen.dart';
 import '../../features/finances/presentation/screens/create_expense_screen.dart';
 import '../../features/finances/presentation/screens/create_income_screen.dart';
+import '../../features/benchmarks/presentation/screens/benchmarks_screen.dart';
+import '../../features/benchmarks/presentation/screens/prs_screen.dart';
+import '../../features/benchmarks/presentation/screens/pr_detail_screen.dart';
 import '../services/notification_service.dart';
 import 'routes.dart';
 
@@ -277,6 +280,38 @@ final routerProvider = Provider<GoRouter>((ref) {
           state,
           const BookingLimitsScreen(),
         ),
+      ),
+
+      // Benchmarks routes (full screen, no bottom nav)
+      GoRoute(
+        path: Routes.benchmarks,
+        name: Routes.benchmarksName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const BenchmarksScreen(),
+        ),
+      ),
+      GoRoute(
+        path: Routes.benchmarksPrs,
+        name: Routes.benchmarksPrsName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const PRsScreen(),
+        ),
+      ),
+      GoRoute(
+        path: '/benchmarks/prs/:exerciseId',
+        name: Routes.benchmarksPrDetailName,
+        pageBuilder: (context, state) {
+          final exerciseId = state.pathParameters['exerciseId']!;
+          return _buildPageWithTransition(
+            context,
+            state,
+            PRDetailScreen(exerciseId: exerciseId),
+          );
+        },
       ),
 
       // Main app shell with bottom navigation

@@ -73,4 +73,14 @@ class Routes {
   static const String adminMembersName = 'admin-members';
   static const String adminCheckInName = 'admin-check-in';
   static const String adminBookingLimitsName = 'admin-booking-limits';
+
+  // Benchmarks routes
+  static const String benchmarks = '/benchmarks';
+  static const String benchmarksPrs = '/benchmarks/prs';
+  static const String benchmarksPrDetail = '/benchmarks/prs/:exerciseId';
+
+  // Benchmarks route names
+  static const String benchmarksName = 'benchmarks';
+  static const String benchmarksPrsName = 'benchmarks-prs';
+  static const String benchmarksPrDetailName = 'benchmarks-pr-detail';
 }

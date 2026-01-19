@@ -203,4 +203,13 @@ class GymGoQuickActions {
       color: GymGoColors.textSecondary,
     );
   }
+
+  static QuickAction benchmarks(VoidCallback onTap) {
+    return QuickAction(
+      icon: LucideIcons.trophy,
+      label: 'PRs',
+      onTap: onTap,
+      color: GymGoColors.warning,
+    );
+  }
 }

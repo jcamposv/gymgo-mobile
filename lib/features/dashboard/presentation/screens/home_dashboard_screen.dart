@@ -72,8 +72,8 @@ class HomeDashboardScreen extends ConsumerWidget {
                     GymGoQuickActions.myWorkouts(
                       () => context.go('/member/routines'),
                     ),
-                    GymGoQuickActions.addMeasurement(
-                      () => context.go('/member/measurements'),
+                    GymGoQuickActions.benchmarks(
+                      () => context.push('/benchmarks'),
                     ),
                   ],
                 ).animate().fadeIn(duration: 300.ms, delay: 100.ms),
