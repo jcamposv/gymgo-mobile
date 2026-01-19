@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
@@ -7,23 +8,31 @@ import 'package:video_player/video_player.dart';
 import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../core/theme/gymgo_typography.dart';
+import '../../../alternatives/presentation/widgets/alternatives_sheet.dart';
 import '../../domain/exercise_media.dart';
 import '../../domain/routine.dart';
+import '../providers/routines_providers.dart';
 
 /// Bottom sheet showing exercise details with media
-class ExerciseDetailSheet extends StatefulWidget {
+class ExerciseDetailSheet extends ConsumerStatefulWidget {
   const ExerciseDetailSheet({
     super.key,
     required this.exercise,
+    this.workoutId,
+    this.onExerciseReplaced,
   });
 
   final ExerciseItem exercise;
+  /// If provided, enables the "replace for today" feature
+  final String? workoutId;
+  /// Called when exercise is replaced, so parent can refresh
+  final VoidCallback? onExerciseReplaced;
 
   @override
-  State<ExerciseDetailSheet> createState() => _ExerciseDetailSheetState();
+  ConsumerState<ExerciseDetailSheet> createState() => _ExerciseDetailSheetState();
 }
 
-class _ExerciseDetailSheetState extends State<ExerciseDetailSheet> {
+class _ExerciseDetailSheetState extends ConsumerState<ExerciseDetailSheet> {
   VideoPlayerController? _videoController;
   bool _isVideoInitialized = false;
   bool _isVideoPlaying = false;
@@ -179,6 +188,10 @@ class _ExerciseDetailSheetState extends State<ExerciseDetailSheet> {
                         const SizedBox(height: GymGoSpacing.lg),
                         _buildNotesSection(),
                       ],
+
+                      // AI Alternatives button
+                      const SizedBox(height: GymGoSpacing.lg),
+                      _buildAlternativesButton(context),
 
                       const SizedBox(height: GymGoSpacing.xxl),
                     ],
@@ -693,6 +706,92 @@ class _ExerciseDetailSheetState extends State<ExerciseDetailSheet> {
       title,
       style: GymGoTypography.titleSmall.copyWith(
         fontWeight: FontWeight.w600,
+      ),
+    );
+  }
+
+  Widget _buildAlternativesButton(BuildContext context) {
+    final canReplace = widget.workoutId != null;
+
+    return OutlinedButton.icon(
+      onPressed: () {
+        if (canReplace) {
+          // IMPORTANT: Capture everything BEFORE closing this sheet
+          // because ref and widget will be invalid after pop()
+          final navigator = Navigator.of(context);
+          final scaffoldMessenger = ScaffoldMessenger.of(context);
+          final repository = ref.read(routinesRepositoryProvider);
+          final workoutId = widget.workoutId!;
+          final exerciseId = widget.exercise.exerciseId;
+          final exerciseName = widget.exercise.exerciseName;
+          final exerciseOrder = widget.exercise.order;
+          final onExerciseReplaced = widget.onExerciseReplaced;
+
+          navigator.pop();
+
+          // Use a post-frame callback to ensure the previous sheet is fully closed
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            // Get a fresh context from the navigator
+            if (navigator.context.mounted) {
+              AlternativesSheet.showWithSelection(
+                context: navigator.context,
+                exerciseId: exerciseId,
+                exerciseName: exerciseName,
+                onSelect: (alternative) async {
+                  // Use the pre-captured repository
+                  await repository.substituteExercise(
+                    workoutId: workoutId,
+                    originalExerciseId: exerciseId,
+                    exerciseOrder: exerciseOrder,
+                    replacementExerciseId: alternative.exercise.id,
+                    reason: alternative.reason,
+                  );
+
+                  // Notify parent to refresh
+                  onExerciseReplaced?.call();
+
+                  // Show success message
+                  scaffoldMessenger.showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Ejercicio reemplazado por "${alternative.exercise.displayName}" para hoy',
+                      ),
+                      backgroundColor: GymGoColors.success,
+                    ),
+                  );
+                },
+              );
+            }
+          });
+        } else {
+          // View only mode - close this sheet first
+          final navigator = Navigator.of(context);
+          navigator.pop();
+
+          // Use a post-frame callback to ensure the previous sheet is fully closed
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (navigator.context.mounted) {
+              AlternativesSheet.show(
+                context: navigator.context,
+                exerciseId: widget.exercise.exerciseId,
+                exerciseName: widget.exercise.exerciseName,
+              );
+            }
+          });
+        }
+      },
+      icon: Icon(canReplace ? LucideIcons.repeat : LucideIcons.sparkles, size: 18),
+      label: Text(canReplace ? 'Cambiar ejercicio por hoy' : 'Ver alternativas IA'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: GymGoColors.primary,
+        side: const BorderSide(color: GymGoColors.primary),
+        padding: const EdgeInsets.symmetric(
+          horizontal: GymGoSpacing.md,
+          vertical: GymGoSpacing.sm,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
+        ),
       ),
     );
   }

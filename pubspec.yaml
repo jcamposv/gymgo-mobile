@@ -34,6 +34,9 @@ dependencies:
   flutter_form_builder: ^10.2.0
   form_builder_validators: ^11.0.0
 
+  # HTTP
+  http: ^1.2.1
+
   # Utils
   shared_preferences: ^2.3.4
   flutter_secure_storage: ^9.2.2

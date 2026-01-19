@@ -193,7 +193,43 @@ class RoutinesRepository {
     }
   }
 
+  /// Substitute an exercise for today only
+  /// Uses the database function to create/update an override
+  Future<void> substituteExercise({
+    required String workoutId,
+    required String originalExerciseId,
+    required int exerciseOrder,
+    required String replacementExerciseId,
+    String? reason,
+  }) async {
+    try {
+      debugPrint('RoutinesRepository: Substituting exercise in workout $workoutId');
+      debugPrint('RoutinesRepository: Original: $originalExerciseId, Replacement: $replacementExerciseId');
+
+      final response = await _client.rpc('substitute_exercise', params: {
+        'p_workout_id': workoutId,
+        'p_original_exercise_id': originalExerciseId,
+        'p_original_exercise_order': exerciseOrder,
+        'p_replacement_exercise_id': replacementExerciseId,
+        'p_reason': reason,
+      });
+
+      final result = response as Map<String, dynamic>?;
+
+      if (result == null || result['success'] != true) {
+        final error = result?['error'] ?? 'Unknown error';
+        throw Exception('Failed to substitute exercise: $error');
+      }
+
+      debugPrint('RoutinesRepository: Exercise substituted successfully');
+    } catch (e) {
+      debugPrint('RoutinesRepository: Error substituting exercise: $e');
+      rethrow;
+    }
+  }
+
   /// Enrich routines with full exercise details (gif, video, instructions)
+  /// Also applies daily overrides for today's date
   Future<List<Routine>> _enrichRoutinesWithExerciseDetails(List<Routine> routines) async {
     if (routines.isEmpty) return routines;
 
@@ -205,34 +241,73 @@ class RoutinesRepository {
       }
     }
 
+    // Fetch overrides for all routines for today
+    final overridesMap = await _fetchTodayOverrides(routines.map((r) => r.id).toList());
+
+    // Also collect replacement exercise IDs from overrides
+    for (final overrides in overridesMap.values) {
+      for (final override in overrides) {
+        exerciseIds.add(override['replacement_exercise_id'] as String);
+      }
+    }
+
     if (exerciseIds.isEmpty) return routines;
 
     // Fetch exercise details
     final exerciseDetails = await getExerciseDetails(exerciseIds.toList());
 
-    // Enrich each routine's exercises with details
+    // Enrich each routine's exercises with details and apply overrides
     return routines.map((routine) {
+      final routineOverrides = overridesMap[routine.id] ?? [];
+
       final enrichedExercises = routine.exercises.map((ex) {
-        final details = exerciseDetails[ex.exerciseId];
-        if (details == null) return ex;
+        // Check if this exercise has an override for today
+        final override = routineOverrides.firstWhere(
+          (o) => o['original_exercise_order'] == ex.order,
+          orElse: () => <String, dynamic>{},
+        );
+
+        String exerciseId = ex.exerciseId;
+        String exerciseName = ex.exerciseName;
+        bool isOverridden = false;
+
+        if (override.isNotEmpty) {
+          // Use the replacement exercise
+          exerciseId = override['replacement_exercise_id'] as String;
+          exerciseName = (override['replacement_name_es'] as String?) ??
+              (override['replacement_name'] as String?) ??
+              exerciseName;
+          isOverridden = true;
+          debugPrint('RoutinesRepository: Exercise at order ${ex.order} overridden with $exerciseName');
+        }
+
+        final details = exerciseDetails[exerciseId];
 
         return ExerciseItem(
-          exerciseId: ex.exerciseId,
-          exerciseName: ex.exerciseName,
+          exerciseId: exerciseId,
+          exerciseName: exerciseName,
           order: ex.order,
           sets: ex.sets,
           reps: ex.reps,
           weight: ex.weight,
           restSeconds: ex.restSeconds,
           tempo: ex.tempo,
-          notes: ex.notes,
-          gifUrl: details.gifUrl,
-          videoUrl: details.videoUrl,
-          thumbnailUrl: details.thumbnailUrl,
-          category: details.category,
-          difficulty: details.difficulty,
-          muscleGroups: details.muscleGroups,
-          instructions: details.instructions,
+          notes: isOverridden ? '(Reemplazado por hoy) ${ex.notes ?? ""}' : ex.notes,
+          gifUrl: isOverridden
+              ? (override['replacement_gif_url'] as String?)
+              : details?.gifUrl,
+          videoUrl: details?.videoUrl,
+          thumbnailUrl: details?.thumbnailUrl,
+          category: isOverridden
+              ? (override['replacement_category'] as String?)
+              : details?.category,
+          difficulty: isOverridden
+              ? (override['replacement_difficulty'] as String?)
+              : details?.difficulty,
+          muscleGroups: isOverridden
+              ? (override['replacement_muscle_groups'] as List<dynamic>?)?.cast<String>()
+              : details?.muscleGroups,
+          instructions: details?.instructions,
         );
       }).toList();
 
@@ -256,5 +331,68 @@ class RoutinesRepository {
         memberEmail: routine.memberEmail,
       );
     }).toList();
+  }
+
+  /// Fetch today's overrides for given workout IDs
+  Future<Map<String, List<Map<String, dynamic>>>> _fetchTodayOverrides(
+    List<String> workoutIds,
+  ) async {
+    if (workoutIds.isEmpty) return {};
+
+    try {
+      final today = DateTime.now();
+      final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
+      debugPrint('RoutinesRepository: Fetching overrides for $todayStr');
+
+      final response = await _client
+          .from('workout_exercise_overrides')
+          .select('''
+            workout_id,
+            original_exercise_order,
+            original_exercise_id,
+            replacement_exercise_id,
+            reason,
+            exercises!workout_exercise_overrides_replacement_exercise_id_fkey (
+              name,
+              name_es,
+              gif_url,
+              category,
+              difficulty,
+              muscle_groups
+            )
+          ''')
+          .inFilter('workout_id', workoutIds)
+          .eq('override_date', todayStr)
+          .eq('is_active', true);
+
+      final overridesMap = <String, List<Map<String, dynamic>>>{};
+
+      for (final row in (response as List)) {
+        final workoutId = row['workout_id'] as String;
+        final exercise = row['exercises'] as Map<String, dynamic>?;
+
+        final override = {
+          'original_exercise_order': row['original_exercise_order'],
+          'original_exercise_id': row['original_exercise_id'],
+          'replacement_exercise_id': row['replacement_exercise_id'],
+          'reason': row['reason'],
+          'replacement_name': exercise?['name'],
+          'replacement_name_es': exercise?['name_es'],
+          'replacement_gif_url': exercise?['gif_url'],
+          'replacement_category': exercise?['category'],
+          'replacement_difficulty': exercise?['difficulty'],
+          'replacement_muscle_groups': exercise?['muscle_groups'],
+        };
+
+        overridesMap.putIfAbsent(workoutId, () => []).add(override);
+      }
+
+      debugPrint('RoutinesRepository: Found ${overridesMap.length} workouts with overrides');
+      return overridesMap;
+    } catch (e) {
+      debugPrint('RoutinesRepository: Error fetching overrides: $e');
+      return {};
+    }
   }
 }

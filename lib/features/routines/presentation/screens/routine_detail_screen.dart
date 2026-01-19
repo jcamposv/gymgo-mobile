@@ -494,7 +494,14 @@ class _RoutineDetailScreenState extends ConsumerState<RoutineDetailScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => ExerciseDetailSheet(exercise: exercise),
+      builder: (context) => ExerciseDetailSheet(
+        exercise: exercise,
+        workoutId: widget.routineId,
+        onExerciseReplaced: () {
+          // Refresh the routine to show the new exercise
+          ref.invalidate(routineByIdProvider(widget.routineId));
+        },
+      ),
     );
   }
 
