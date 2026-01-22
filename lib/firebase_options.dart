@@ -55,6 +55,6 @@ class DefaultFirebaseOptions {
     messagingSenderId: '76038488450',
     projectId: 'gymgo-e8098',
     storageBucket: 'gymgo-e8098.firebasestorage.app',
-    iosBundleId: 'com.gymgo.gymgoMobile',
+    iosBundleId: 'io.gymgo.app',
   );
 }
