@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'app.dart';
+import 'core/config/env_config.dart';
 import 'core/config/supabase_config.dart';
 import 'core/services/notification_service.dart';
 import 'features/notifications/presentation/providers/inbox_providers.dart';
@@ -58,6 +59,9 @@ void main() async {
 
   // Initialize Supabase
   await SupabaseConfig.initialize();
+
+  // Print environment config (debug only)
+  EnvConfig.printConfig();
 
   // Initialize date formatting for Spanish locale
   await initializeDateFormatting('es', null);
