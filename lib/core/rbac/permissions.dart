@@ -5,11 +5,11 @@
 import 'types.dart';
 
 /// Centralized mapping of roles to their permissions
+///
+/// Note: super_admin was removed from mobile. Users with super_admin role
+/// in the database are mapped to admin in mobile (full gym access).
 final Map<AppRole, Set<AppPermission>> rolePermissions = {
-  // SUPER_ADMIN - All permissions
-  AppRole.superAdmin: AppPermission.values.toSet(),
-
-  // ADMIN - Full gym access
+  // ADMIN - Full gym access (includes super_admin mapped from DB)
   AppRole.admin: {
     // Dashboard
     AppPermission.viewAdminDashboard,
@@ -244,9 +244,9 @@ bool hasAllPermissions(AppRole? role, List<AppPermission> permissions) {
   return permissions.every((p) => rolePerms.contains(p));
 }
 
-/// Check if role is admin-level (ADMIN or SUPER_ADMIN)
+/// Check if role is admin-level
 bool isAdmin(AppRole? role) {
-  return role == AppRole.admin || role == AppRole.superAdmin;
+  return role == AppRole.admin;
 }
 
 /// Check if role is staff (can manage gym in some capacity)

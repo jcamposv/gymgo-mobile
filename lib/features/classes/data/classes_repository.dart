@@ -58,13 +58,17 @@ class ClassesRepository {
 
   /// Get classes for a specific date
   /// Works for both members and admin/staff (who may not have member records)
-  Future<List<GymClass>> getClassesByDate(DateTime date) async {
-    final organizationId = await _getOrganizationId();
+  ///
+  /// [orgId] - Optional. If provided, uses this instead of querying profiles.
+  /// This is preferred when the org ID is already available from a provider.
+  Future<List<GymClass>> getClassesByDate(DateTime date, {String? organizationId}) async {
+    // Use provided organizationId or fallback to query
+    final orgId = organizationId ?? await _getOrganizationId();
     final memberId = await _getMemberId();
 
-    debugPrint('getClassesByDate: orgId=$organizationId, memberId=$memberId, date=$date');
+    debugPrint('getClassesByDate: orgId=$orgId, memberId=$memberId, date=$date');
 
-    if (organizationId == null) {
+    if (orgId == null) {
       debugPrint('getClassesByDate: No organization ID found');
       throw Exception('No hay sesion activa o no perteneces a una organizacion');
     }
@@ -85,7 +89,7 @@ class ClassesRepository {
             status
           )
         ''')
-        .eq('organization_id', organizationId)
+        .eq('organization_id', orgId)
         .gte('start_time', startOfDay.toIso8601String())
         .lt('start_time', endOfDay.toIso8601String())
         .eq('is_cancelled', false)

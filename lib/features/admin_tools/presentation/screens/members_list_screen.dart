@@ -6,6 +6,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../core/theme/gymgo_typography.dart';
+import '../../../../shared/presentation/widgets/sede_header.dart';
+import '../../../../shared/providers/location_providers.dart';
 import '../../../../shared/ui/components/components.dart';
 import '../../domain/member.dart';
 import '../providers/members_providers.dart';
@@ -51,6 +53,14 @@ class _MembersListScreenState extends ConsumerState<MembersListScreen> {
           icon: const Icon(LucideIcons.arrowLeft),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          // Location indicator (compact)
+          if (ref.watch(hasMultipleLocationsProvider))
+            Padding(
+              padding: const EdgeInsets.only(right: GymGoSpacing.sm),
+              child: const SedeHeaderCompact(),
+            ),
+        ],
       ),
       body: SafeArea(
         child: Column(
@@ -381,6 +391,12 @@ class _MembersListScreenState extends ConsumerState<MembersListScreen> {
   }
 
   Widget _buildEmptyState(bool isFiltered) {
+    // Get location name for empty state message
+    final locationName = ref.watch(adminActiveLocationProvider).maybeWhen(
+          data: (loc) => loc?.name,
+          orElse: () => null,
+        );
+
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(GymGoSpacing.xl),
@@ -410,7 +426,9 @@ class _MembersListScreenState extends ConsumerState<MembersListScreen> {
             Text(
               isFiltered
                   ? 'Intenta con otros terminos de busqueda'
-                  : 'Los miembros apareceran aqui cuando se registren',
+                  : locationName != null
+                      ? 'No hay miembros registrados en $locationName'
+                      : 'Los miembros apareceran aqui cuando se registren',
               style: GymGoTypography.bodyMedium.copyWith(
                 color: GymGoColors.textSecondary,
               ),

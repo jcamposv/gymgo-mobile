@@ -12,6 +12,7 @@ import '../../../../shared/models/member.dart';
 import '../../../../shared/models/profile_photo_selection.dart';
 import '../../../../shared/ui/components/components.dart';
 import '../../../../shared/providers/branding_providers.dart';
+import '../../../../shared/providers/location_providers.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../widgets/change_password_sheet.dart';
 
@@ -86,7 +87,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Widget build(BuildContext context) {
     final user = ref.watch(currentUserProvider);
     final brandingAsync = ref.watch(gymBrandingProvider);
+    final locationAsync = ref.watch(currentLocationProvider);
     final gymName = brandingAsync.whenOrNull(data: (b) => b.gymName) ?? 'GymGo';
+    final locationName = locationAsync.whenOrNull(data: (l) => l?.name);
 
     return Scaffold(
       backgroundColor: GymGoColors.background,
@@ -101,7 +104,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           child: Column(
             children: [
               // Gym branding card
-              _buildGymCard(gymName),
+              _buildGymCard(gymName, locationName),
 
               const SizedBox(height: GymGoSpacing.lg),
 
@@ -187,7 +190,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     );
   }
 
-  Widget _buildGymCard(String gymName) {
+  Widget _buildGymCard(String gymName, String? locationName) {
     return GymGoCard(
       padding: const EdgeInsets.all(GymGoSpacing.md),
       child: Row(
@@ -218,12 +221,34 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  'Tu gimnasio',
-                  style: GymGoTypography.bodySmall.copyWith(
-                    color: GymGoColors.textTertiary,
+                if (locationName != null)
+                  Row(
+                    children: [
+                      Icon(
+                        LucideIcons.mapPin,
+                        size: 12,
+                        color: GymGoColors.textTertiary,
+                      ),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          locationName,
+                          style: GymGoTypography.bodySmall.copyWith(
+                            color: GymGoColors.textTertiary,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  )
+                else
+                  Text(
+                    'Tu gimnasio',
+                    style: GymGoTypography.bodySmall.copyWith(
+                      color: GymGoColors.textTertiary,
+                    ),
                   ),
-                ),
               ],
             ),
           ),

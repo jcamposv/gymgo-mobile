@@ -120,3 +120,19 @@ final hasPermissionProvider = Provider.family<bool, AppPermission>((ref, permiss
   final role = ref.watch(userRoleProvider);
   return hasPermission(role, permission);
 });
+
+/// Provider for the current user's organization ID
+/// This is a centralized source for organization_id to avoid multiple queries
+final currentOrganizationIdProvider = Provider<String?>((ref) {
+  final profileAsync = ref.watch(userProfileProvider);
+  return profileAsync.maybeWhen(
+    data: (profile) => profile?.organizationId,
+    orElse: () => null,
+  );
+});
+
+/// Async version that waits for the profile to load
+final currentOrganizationIdAsyncProvider = FutureProvider<String?>((ref) async {
+  final profile = await ref.watch(userProfileProvider.future);
+  return profile?.organizationId;
+});

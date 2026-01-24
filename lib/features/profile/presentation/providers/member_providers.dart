@@ -49,6 +49,7 @@ final currentMemberProvider = FutureProvider<Member?>((ref) async {
     if (response != null) {
       debugPrint('currentMemberProvider: Found member with id: ${response['id']}');
       debugPrint('currentMemberProvider: organization_id: ${response['organization_id']}');
+      debugPrint('currentMemberProvider: location_id: ${response['location_id']}');
       return Member.fromJson(response);
     }
 
@@ -74,4 +75,10 @@ final currentMemberProvider = FutureProvider<Member?>((ref) async {
 final memberOrganizationIdProvider = FutureProvider<String?>((ref) async {
   final member = await ref.watch(currentMemberProvider.future);
   return member?.organizationId;
+});
+
+/// Provider for member's location ID
+final memberLocationIdProvider = FutureProvider<String?>((ref) async {
+  final member = await ref.watch(currentMemberProvider.future);
+  return member?.locationId;
 });

@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../../../shared/providers/location_providers.dart';
 import '../../data/finances_repository.dart';
 import '../../domain/finance_models.dart';
 
@@ -70,16 +71,21 @@ final incomeCategoryFilterProvider = StateProvider<String?>((ref) => null);
 // PAYMENTS PROVIDERS
 // =============================================================================
 
-/// Payments list provider
+/// Payments list provider - filtered by admin's active location
 final paymentsProvider = FutureProvider<PaginatedResult<Payment>>((ref) async {
   final repository = ref.watch(financesRepositoryProvider);
   final dateRange = ref.watch(dateRangeFilterProvider);
   final status = ref.watch(paymentStatusFilterProvider);
 
+  // Get active location from admin context
+  final activeLocation = await ref.watch(adminActiveLocationProvider.future);
+  final locationId = activeLocation?.id;
+
   return repository.getPayments(
     status: status,
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
+    locationId: locationId,
     page: 1,
     perPage: 50,
   );
@@ -118,16 +124,21 @@ final createPaymentProvider =
 // EXPENSES PROVIDERS
 // =============================================================================
 
-/// Expenses list provider
+/// Expenses list provider - filtered by admin's active location
 final expensesProvider = FutureProvider<PaginatedResult<Expense>>((ref) async {
   final repository = ref.watch(financesRepositoryProvider);
   final dateRange = ref.watch(dateRangeFilterProvider);
   final category = ref.watch(expenseCategoryFilterProvider);
 
+  // Get active location from admin context
+  final activeLocation = await ref.watch(adminActiveLocationProvider.future);
+  final locationId = activeLocation?.id;
+
   return repository.getExpenses(
     category: category,
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
+    locationId: locationId,
     page: 1,
     perPage: 50,
   );
@@ -166,16 +177,21 @@ final createExpenseProvider =
 // INCOME PROVIDERS
 // =============================================================================
 
-/// Income list provider
+/// Income list provider - filtered by admin's active location
 final incomeListProvider = FutureProvider<PaginatedResult<Income>>((ref) async {
   final repository = ref.watch(financesRepositoryProvider);
   final dateRange = ref.watch(dateRangeFilterProvider);
   final category = ref.watch(incomeCategoryFilterProvider);
 
+  // Get active location from admin context
+  final activeLocation = await ref.watch(adminActiveLocationProvider.future);
+  final locationId = activeLocation?.id;
+
   return repository.getIncome(
     category: category,
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
+    locationId: locationId,
     page: 1,
     perPage: 50,
   );
@@ -214,14 +230,19 @@ final createIncomeProvider =
 // FINANCE OVERVIEW PROVIDER (Admin only)
 // =============================================================================
 
-/// Finance overview provider
+/// Finance overview provider - filtered by admin's active location
 final financeOverviewProvider = FutureProvider<FinanceOverview>((ref) async {
   final repository = ref.watch(financesRepositoryProvider);
   final dateRange = ref.watch(dateRangeFilterProvider);
 
+  // Get active location from admin context
+  final activeLocation = await ref.watch(adminActiveLocationProvider.future);
+  final locationId = activeLocation?.id;
+
   return repository.getFinanceOverview(
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
+    locationId: locationId,
   );
 });
 

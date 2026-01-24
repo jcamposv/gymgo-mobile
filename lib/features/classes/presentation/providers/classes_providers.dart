@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../shared/providers/role_providers.dart';
 import '../../data/classes_repository.dart';
 import '../../domain/gym_class.dart';
 
@@ -33,7 +34,10 @@ final classesProvider = FutureProvider<List<GymClass>>((ref) async {
   final repository = ref.watch(classesRepositoryProvider);
   final selectedDate = ref.watch(selectedDateProvider);
 
-  return repository.getClassesByDate(selectedDate);
+  // Get organizationId from profile provider (already loaded)
+  final organizationId = await ref.watch(currentOrganizationIdAsyncProvider.future);
+
+  return repository.getClassesByDate(selectedDate, organizationId: organizationId);
 });
 
 /// Filtered classes based on time slot

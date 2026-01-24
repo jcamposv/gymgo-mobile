@@ -8,6 +8,8 @@ import '../../../../core/router/routes.dart';
 import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../core/theme/gymgo_typography.dart';
+import '../../../../shared/presentation/widgets/sede_header.dart';
+import '../../../../shared/providers/location_providers.dart';
 import '../../../../shared/providers/role_providers.dart';
 import '../../../../shared/ui/components/components.dart';
 import '../../../classes/presentation/providers/templates_providers.dart';
@@ -120,28 +122,50 @@ class AdminToolsScreen extends ConsumerWidget {
   Widget _buildContent(BuildContext context, WidgetRef ref, UserProfile profile) {
     final isAdmin = profile.isAdmin;
     final role = profile.role;
+    final hasMultipleLocations = ref.watch(hasMultipleLocationsProvider);
 
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.all(GymGoSpacing.screenHorizontal),
+        padding: const EdgeInsets.symmetric(vertical: GymGoSpacing.screenHorizontal),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Role badge
-            _buildRoleBadge(role),
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: GymGoSpacing.screenHorizontal,
+              ),
+              child: _buildRoleBadge(role),
+            ),
+
+            // Sede header (only show if multiple locations or for admins)
+            if (hasMultipleLocations || isAdmin) ...[
+              const SizedBox(height: GymGoSpacing.md),
+              const SedeHeader(),
+            ],
+
             const SizedBox(height: GymGoSpacing.lg),
 
             // Quick Actions section
-            Text(
-              'Acciones rápidas',
-              style: GymGoTypography.labelMedium.copyWith(
-                color: GymGoColors.textTertiary,
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: GymGoSpacing.screenHorizontal,
+              ),
+              child: Text(
+                'Acciones rápidas',
+                style: GymGoTypography.labelMedium.copyWith(
+                  color: GymGoColors.textTertiary,
+                ),
               ),
             ),
             const SizedBox(height: GymGoSpacing.sm),
 
             // Grid of action cards
-            GridView.count(
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: GymGoSpacing.screenHorizontal,
+              ),
+              child: GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
@@ -204,53 +228,64 @@ class AdminToolsScreen extends ConsumerWidget {
                     onTap: () => _showLockedFeatureMessage(context),
                   ),
               ],
+              ),
             ),
 
             const SizedBox(height: GymGoSpacing.xl),
 
             // Additional tools section
-            Text(
-              'Más herramientas',
-              style: GymGoTypography.labelMedium.copyWith(
-                color: GymGoColors.textTertiary,
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: GymGoSpacing.screenHorizontal,
+              ),
+              child: Text(
+                'Más herramientas',
+                style: GymGoTypography.labelMedium.copyWith(
+                  color: GymGoColors.textTertiary,
+                ),
               ),
             ),
             const SizedBox(height: GymGoSpacing.sm),
 
             // List of additional tools
-            GymGoCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  _buildToolListItem(
-                    icon: LucideIcons.users,
-                    label: 'Ver miembros',
-                    description: 'Lista de clientes',
-                    onTap: () => context.push(Routes.adminMembers),
-                  ),
-                  const Divider(height: 1, color: GymGoColors.cardBorder),
-                  _buildToolListItem(
-                    icon: LucideIcons.calendar,
-                    label: 'Ver clases',
-                    description: 'Agenda completa',
-                    // Use go() to navigate to ShellRoute pages to avoid duplicate key issues
-                    onTap: () => context.go(Routes.memberClasses),
-                  ),
-                  const Divider(height: 1, color: GymGoColors.cardBorder),
-                  _buildToolListItem(
-                    icon: LucideIcons.clipboardCheck,
-                    label: 'Check-in manual',
-                    description: 'Registrar asistencia',
-                    onTap: () => context.push(Routes.adminCheckIn),
-                  ),
-                  const Divider(height: 1, color: GymGoColors.cardBorder),
-                  _buildToolListItem(
-                    icon: LucideIcons.sliders,
-                    label: 'Límites de reserva',
-                    description: 'Max clases por día',
-                    onTap: () => context.push(Routes.adminBookingLimits),
-                  ),
-                ],
+            Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: GymGoSpacing.screenHorizontal,
+              ),
+              child: GymGoCard(
+                padding: EdgeInsets.zero,
+                child: Column(
+                  children: [
+                    _buildToolListItem(
+                      icon: LucideIcons.users,
+                      label: 'Ver miembros',
+                      description: 'Lista de clientes',
+                      onTap: () => context.push(Routes.adminMembers),
+                    ),
+                    const Divider(height: 1, color: GymGoColors.cardBorder),
+                    _buildToolListItem(
+                      icon: LucideIcons.calendar,
+                      label: 'Ver clases',
+                      description: 'Agenda completa',
+                      // Use go() to navigate to ShellRoute pages to avoid duplicate key issues
+                      onTap: () => context.go(Routes.memberClasses),
+                    ),
+                    const Divider(height: 1, color: GymGoColors.cardBorder),
+                    _buildToolListItem(
+                      icon: LucideIcons.clipboardCheck,
+                      label: 'Check-in manual',
+                      description: 'Registrar asistencia',
+                      onTap: () => context.push(Routes.adminCheckIn),
+                    ),
+                    const Divider(height: 1, color: GymGoColors.cardBorder),
+                    _buildToolListItem(
+                      icon: LucideIcons.sliders,
+                      label: 'Límites de reserva',
+                      description: 'Max clases por día',
+                      onTap: () => context.push(Routes.adminBookingLimits),
+                    ),
+                  ],
+                ),
               ),
             ),
 

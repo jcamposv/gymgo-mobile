@@ -3,8 +3,11 @@
 /// Mirrors the web RBAC system in web/src/lib/rbac/types.ts
 
 /// Application roles
+///
+/// Note: super_admin was removed from mobile as it's only needed for
+/// platform-level administration (debugging, multi-org access) which
+/// is not supported in the mobile app.
 enum AppRole {
-  superAdmin('super_admin'),
   admin('admin'),
   assistant('assistant'),
   trainer('trainer'),
@@ -22,7 +25,8 @@ enum AppRole {
     switch (value.toLowerCase()) {
       case 'super_admin':
       case 'superadmin':
-        return AppRole.superAdmin;
+        // super_admin maps to admin in mobile (full gym access)
+        return AppRole.admin;
       case 'admin':
       case 'owner':
         return AppRole.admin;
@@ -43,8 +47,6 @@ enum AppRole {
   /// Human-readable label (Spanish)
   String get label {
     switch (this) {
-      case AppRole.superAdmin:
-        return 'Super Administrador';
       case AppRole.admin:
         return 'Administrador';
       case AppRole.assistant:
@@ -61,8 +63,6 @@ enum AppRole {
   /// Role description (Spanish)
   String get description {
     switch (this) {
-      case AppRole.superAdmin:
-        return 'Acceso completo a la plataforma y todas las organizaciones';
       case AppRole.admin:
         return 'Acceso completo al gimnasio, incluyendo finanzas y configuración';
       case AppRole.assistant:
@@ -164,7 +164,6 @@ enum AppPermission {
 
 /// Staff roles (anyone who can manage the gym)
 const staffRoles = [
-  AppRole.superAdmin,
   AppRole.admin,
   AppRole.assistant,
   AppRole.trainer,
@@ -173,13 +172,11 @@ const staffRoles = [
 
 /// Admin-level roles (full dashboard access)
 const adminRoles = [
-  AppRole.superAdmin,
   AppRole.admin,
 ];
 
 /// Roles that can access Admin Tools
 const adminToolsRoles = [
-  AppRole.superAdmin,
   AppRole.admin,
   AppRole.assistant,
 ];

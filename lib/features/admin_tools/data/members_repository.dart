@@ -36,10 +36,13 @@ class MembersRepository {
 
   /// Get paginated list of members for the organization
   /// Matches web contract: getMembers action
+  ///
+  /// If [locationId] is provided, filters members by location
   Future<MembersResult> getMembers({
     String? query,
     MemberStatus? status,
     ExperienceLevel? experienceLevel,
+    String? locationId,
     int page = 1,
     int perPage = 20,
     String sortBy = 'created_at',
@@ -51,7 +54,7 @@ class MembersRepository {
       throw Exception('No hay sesion activa o no perteneces a una organizacion');
     }
 
-    debugPrint('MembersRepository.getMembers: orgId=$organizationId, page=$page, perPage=$perPage');
+    debugPrint('MembersRepository.getMembers: orgId=$organizationId, locationId=$locationId, page=$page, perPage=$perPage');
 
     final from = (page - 1) * perPage;
     final to = from + perPage - 1;
@@ -61,6 +64,11 @@ class MembersRepository {
         .from('members')
         .select()
         .eq('organization_id', organizationId);
+
+    // Apply location filter if provided
+    if (locationId != null) {
+      dbQuery = dbQuery.eq('location_id', locationId);
+    }
 
     // Apply search filter (name or email)
     if (query != null && query.isNotEmpty) {
@@ -114,7 +122,13 @@ class MembersRepository {
   }
 
   /// Search members by name or email
-  Future<List<Member>> searchMembers(String query, {int limit = 10}) async {
+  ///
+  /// If [locationId] is provided, filters members by location
+  Future<List<Member>> searchMembers(
+    String query, {
+    String? locationId,
+    int limit = 10,
+  }) async {
     final organizationId = await _getOrganizationId();
     if (organizationId == null) {
       return [];
@@ -124,10 +138,17 @@ class MembersRepository {
       return [];
     }
 
-    final response = await _supabase
+    var dbQuery = _supabase
         .from('members')
         .select()
-        .eq('organization_id', organizationId)
+        .eq('organization_id', organizationId);
+
+    // Apply location filter if provided
+    if (locationId != null) {
+      dbQuery = dbQuery.eq('location_id', locationId);
+    }
+
+    final response = await dbQuery
         .or('full_name.ilike.%$query%,email.ilike.%$query%')
         .limit(limit)
         .order('full_name', ascending: true);
@@ -138,7 +159,11 @@ class MembersRepository {
   }
 
   /// Get members count by status
-  Future<Map<MemberStatus, int>> getMemberCountsByStatus() async {
+  ///
+  /// If [locationId] is provided, filters counts by location
+  Future<Map<MemberStatus, int>> getMemberCountsByStatus({
+    String? locationId,
+  }) async {
     final organizationId = await _getOrganizationId();
     if (organizationId == null) {
       return {};
@@ -147,12 +172,17 @@ class MembersRepository {
     final counts = <MemberStatus, int>{};
 
     for (final status in MemberStatus.values) {
-      final response = await _supabase
+      var dbQuery = _supabase
           .from('members')
           .select('id')
           .eq('organization_id', organizationId)
           .eq('status', status.name);
 
+      if (locationId != null) {
+        dbQuery = dbQuery.eq('location_id', locationId);
+      }
+
+      final response = await dbQuery;
       counts[status] = (response as List).length;
     }
 
@@ -160,17 +190,24 @@ class MembersRepository {
   }
 
   /// Get total members count
-  Future<int> getTotalMembersCount() async {
+  ///
+  /// If [locationId] is provided, filters count by location
+  Future<int> getTotalMembersCount({String? locationId}) async {
     final organizationId = await _getOrganizationId();
     if (organizationId == null) {
       return 0;
     }
 
-    final response = await _supabase
+    var dbQuery = _supabase
         .from('members')
         .select('id')
         .eq('organization_id', organizationId);
 
+    if (locationId != null) {
+      dbQuery = dbQuery.eq('location_id', locationId);
+    }
+
+    final response = await dbQuery;
     return (response as List).length;
   }
 }

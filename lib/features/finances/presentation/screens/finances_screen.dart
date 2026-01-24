@@ -6,6 +6,8 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../core/theme/gymgo_typography.dart';
+import '../../../../shared/presentation/widgets/sede_header.dart';
+import '../../../../shared/providers/location_providers.dart';
 import '../../../../shared/providers/role_providers.dart';
 import '../providers/finances_providers.dart';
 import '../widgets/payments_list.dart';
@@ -71,6 +73,14 @@ class _FinancesScreenState extends ConsumerState<FinancesScreen>
           icon: const Icon(LucideIcons.arrowLeft),
           onPressed: () => context.pop(),
         ),
+        actions: [
+          // Location indicator (compact)
+          if (ref.watch(hasMultipleLocationsProvider))
+            Padding(
+              padding: const EdgeInsets.only(right: GymGoSpacing.sm),
+              child: const SedeHeaderCompact(),
+            ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: GymGoColors.primary,

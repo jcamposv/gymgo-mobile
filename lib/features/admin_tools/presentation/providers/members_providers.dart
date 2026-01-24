@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../shared/providers/location_providers.dart';
 import '../../data/members_repository.dart';
 import '../../domain/member.dart';
 
@@ -20,16 +21,21 @@ final membersPageProvider = StateProvider<int>((ref) => 1);
 /// Items per page
 const int membersPerPage = 20;
 
-/// Members list provider
+/// Members list provider - filtered by admin's active location
 final membersListProvider = FutureProvider<MembersResult>((ref) async {
   final repository = ref.watch(membersRepositoryProvider);
   final query = ref.watch(membersSearchQueryProvider);
   final statusFilter = ref.watch(membersStatusFilterProvider);
   final page = ref.watch(membersPageProvider);
 
+  // Get active location from admin context
+  final activeLocation = await ref.watch(adminActiveLocationProvider.future);
+  final locationId = activeLocation?.id;
+
   return repository.getMembers(
     query: query.isEmpty ? null : query,
     status: statusFilter,
+    locationId: locationId,
     page: page,
     perPage: membersPerPage,
     sortBy: 'created_at',
@@ -38,11 +44,17 @@ final membersListProvider = FutureProvider<MembersResult>((ref) async {
 });
 
 /// Search members provider (for autocomplete/quick search)
+/// Filtered by admin's active location
 final membersSearchProvider = FutureProvider.family<List<Member>, String>((ref, query) async {
   if (query.isEmpty) return [];
 
   final repository = ref.watch(membersRepositoryProvider);
-  return repository.searchMembers(query, limit: 10);
+
+  // Get active location from admin context
+  final activeLocation = await ref.watch(adminActiveLocationProvider.future);
+  final locationId = activeLocation?.id;
+
+  return repository.searchMembers(query, locationId: locationId, limit: 10);
 });
 
 /// Single member provider
@@ -51,10 +63,15 @@ final memberDetailProvider = FutureProvider.family<Member?, String>((ref, id) as
   return repository.getMember(id);
 });
 
-/// Total members count provider
+/// Total members count provider - filtered by admin's active location
 final totalMembersCountProvider = FutureProvider<int>((ref) async {
   final repository = ref.watch(membersRepositoryProvider);
-  return repository.getTotalMembersCount();
+
+  // Get active location from admin context
+  final activeLocation = await ref.watch(adminActiveLocationProvider.future);
+  final locationId = activeLocation?.id;
+
+  return repository.getTotalMembersCount(locationId: locationId);
 });
 
 /// Helper to reset filters and go to first page

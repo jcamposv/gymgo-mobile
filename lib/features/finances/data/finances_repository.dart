@@ -51,10 +51,13 @@ class FinancesRepository {
 
   /// Get payments with pagination and filters
   /// Matches web query: payments + member + plan + created_by_profile joins
+  ///
+  /// If [locationId] is provided, filters payments by location.
   Future<PaginatedResult<Payment>> getPayments({
     String? status,
     DateTime? startDate,
     DateTime? endDate,
+    String? locationId,
     int page = 1,
     int perPage = 20,
   }) async {
@@ -79,6 +82,9 @@ class FinancesRepository {
           .eq('organization_id', organizationId);
 
       // Apply filters before order/range
+      if (locationId != null) {
+        query = query.eq('location_id', locationId);
+      }
       if (status != null && status.isNotEmpty) {
         query = query.eq('status', status);
       }
@@ -100,6 +106,9 @@ class FinancesRepository {
           .select('id')
           .eq('organization_id', organizationId);
 
+      if (locationId != null) {
+        countQuery = countQuery.eq('location_id', locationId);
+      }
       if (status != null && status.isNotEmpty) {
         countQuery = countQuery.eq('status', status);
       }
@@ -187,11 +196,16 @@ class FinancesRepository {
   // ===========================================================================
 
   /// Get expenses with pagination and filters
+  ///
+  /// If [locationId] is provided, filters expenses by location.
+  /// Set [includeOrgWide] to include org-wide expenses (NULL location_id).
   Future<PaginatedResult<Expense>> getExpenses({
     String? category,
     String? query,
     DateTime? startDate,
     DateTime? endDate,
+    String? locationId,
+    bool includeOrgWide = true,
     int page = 1,
     int perPage = 20,
   }) async {
@@ -214,6 +228,13 @@ class FinancesRepository {
           .eq('organization_id', organizationId);
 
       // Apply filters before order/range
+      if (locationId != null) {
+        if (includeOrgWide) {
+          dbQuery = dbQuery.or('location_id.eq.$locationId,location_id.is.null');
+        } else {
+          dbQuery = dbQuery.eq('location_id', locationId);
+        }
+      }
       if (query != null && query.isNotEmpty) {
         dbQuery = dbQuery.ilike('description', '%$query%');
       }
@@ -238,6 +259,13 @@ class FinancesRepository {
           .select('id')
           .eq('organization_id', organizationId);
 
+      if (locationId != null) {
+        if (includeOrgWide) {
+          countQuery = countQuery.or('location_id.eq.$locationId,location_id.is.null');
+        } else {
+          countQuery = countQuery.eq('location_id', locationId);
+        }
+      }
       if (query != null && query.isNotEmpty) {
         countQuery = countQuery.ilike('description', '%$query%');
       }
@@ -313,11 +341,16 @@ class FinancesRepository {
   // ===========================================================================
 
   /// Get income with pagination and filters
+  ///
+  /// If [locationId] is provided, filters income by location.
+  /// Set [includeOrgWide] to include org-wide income (NULL location_id).
   Future<PaginatedResult<Income>> getIncome({
     String? category,
     String? query,
     DateTime? startDate,
     DateTime? endDate,
+    String? locationId,
+    bool includeOrgWide = true,
     int page = 1,
     int perPage = 20,
   }) async {
@@ -340,6 +373,13 @@ class FinancesRepository {
           .eq('organization_id', organizationId);
 
       // Apply filters before order/range
+      if (locationId != null) {
+        if (includeOrgWide) {
+          dbQuery = dbQuery.or('location_id.eq.$locationId,location_id.is.null');
+        } else {
+          dbQuery = dbQuery.eq('location_id', locationId);
+        }
+      }
       if (query != null && query.isNotEmpty) {
         dbQuery = dbQuery.ilike('description', '%$query%');
       }
@@ -364,6 +404,13 @@ class FinancesRepository {
           .select('id')
           .eq('organization_id', organizationId);
 
+      if (locationId != null) {
+        if (includeOrgWide) {
+          countQuery = countQuery.or('location_id.eq.$locationId,location_id.is.null');
+        } else {
+          countQuery = countQuery.eq('location_id', locationId);
+        }
+      }
       if (query != null && query.isNotEmpty) {
         countQuery = countQuery.ilike('description', '%$query%');
       }
@@ -439,9 +486,14 @@ class FinancesRepository {
   // ===========================================================================
 
   /// Get finance overview (Admin only)
+  ///
+  /// If [locationId] is provided, filters data by location.
+  /// For expenses/income with NULL location_id (org-wide), set [includeOrgWide] to true.
   Future<FinanceOverview> getFinanceOverview({
     DateTime? startDate,
     DateTime? endDate,
+    String? locationId,
+    bool includeOrgWide = true,
   }) async {
     final organizationId = await _getOrganizationId();
     if (organizationId == null) {
@@ -456,7 +508,7 @@ class FinancesRepository {
 
     try {
       // Get total payments (membership income) - status = 'paid'
-      final paymentsResponse = await _supabase
+      var paymentsQuery = _supabase
           .from('payments')
           .select('amount')
           .eq('organization_id', organizationId)
@@ -464,38 +516,66 @@ class FinancesRepository {
           .gte('created_at', periodStart.toIso8601String())
           .lte('created_at', periodEnd.toIso8601String());
 
+      if (locationId != null) {
+        paymentsQuery = paymentsQuery.eq('location_id', locationId);
+      }
+
+      final paymentsResponse = await paymentsQuery;
       final membershipIncome = (paymentsResponse as List)
           .fold<double>(0, (sum, p) => sum + (p['amount'] as num).toDouble());
 
-      // Get other income
-      final incomeResponse = await _supabase
+      // Get other income - with optional org-wide inclusion
+      var incomeQuery = _supabase
           .from('income')
           .select('amount')
           .eq('organization_id', organizationId)
           .gte('income_date', periodStart.toIso8601String())
           .lte('income_date', periodEnd.toIso8601String());
 
+      if (locationId != null) {
+        if (includeOrgWide) {
+          incomeQuery = incomeQuery.or('location_id.eq.$locationId,location_id.is.null');
+        } else {
+          incomeQuery = incomeQuery.eq('location_id', locationId);
+        }
+      }
+
+      final incomeResponse = await incomeQuery;
       final otherIncome = (incomeResponse as List)
           .fold<double>(0, (sum, i) => sum + (i['amount'] as num).toDouble());
 
-      // Get total expenses
-      final expensesResponse = await _supabase
+      // Get total expenses - with optional org-wide inclusion
+      var expensesQuery = _supabase
           .from('expenses')
           .select('amount')
           .eq('organization_id', organizationId)
           .gte('expense_date', periodStart.toIso8601String())
           .lte('expense_date', periodEnd.toIso8601String());
 
+      if (locationId != null) {
+        if (includeOrgWide) {
+          expensesQuery = expensesQuery.or('location_id.eq.$locationId,location_id.is.null');
+        } else {
+          expensesQuery = expensesQuery.eq('location_id', locationId);
+        }
+      }
+
+      final expensesResponse = await expensesQuery;
       final totalExpenses = (expensesResponse as List)
           .fold<double>(0, (sum, e) => sum + (e['amount'] as num).toDouble());
 
       // Get pending payments (not filtered by date)
-      final pendingResponse = await _supabase
+      var pendingQuery = _supabase
           .from('payments')
           .select('amount')
           .eq('organization_id', organizationId)
           .eq('status', 'pending');
 
+      if (locationId != null) {
+        pendingQuery = pendingQuery.eq('location_id', locationId);
+      }
+
+      final pendingResponse = await pendingQuery;
       final pendingPayments = (pendingResponse as List)
           .fold<double>(0, (sum, p) => sum + (p['amount'] as num).toDouble());
 

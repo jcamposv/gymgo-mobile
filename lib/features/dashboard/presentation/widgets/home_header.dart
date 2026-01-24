@@ -12,6 +12,7 @@ import '../../../../core/theme/gymgo_typography.dart';
 import '../../../../shared/models/member.dart';
 import '../../../../shared/ui/components/components.dart';
 import '../../../../shared/providers/branding_providers.dart';
+import '../../../../shared/providers/location_providers.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../notifications/presentation/providers/inbox_providers.dart';
 
@@ -65,9 +66,11 @@ class _HomeHeaderState extends ConsumerState<HomeHeader> {
     final user = ref.watch(currentUserProvider);
     final brandingAsync = ref.watch(gymBrandingProvider);
     final unreadCount = ref.watch(unreadCountProvider);
+    final locationAsync = ref.watch(currentLocationProvider);
     final userName = _member?.name ?? _extractUserName(user?.email);
     final greeting = _getGreeting();
     final gymName = brandingAsync.whenOrNull(data: (b) => b.gymName);
+    final locationName = locationAsync.whenOrNull(data: (l) => l?.name);
 
     return Padding(
       padding: const EdgeInsets.symmetric(
@@ -94,7 +97,7 @@ class _HomeHeaderState extends ConsumerState<HomeHeader> {
 
           const SizedBox(width: GymGoSpacing.md),
 
-          // Greeting and gym name
+          // Greeting, gym name, and location
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,15 +110,50 @@ class _HomeHeaderState extends ConsumerState<HomeHeader> {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                if (gymName != null) ...[
+                if (gymName != null || locationName != null) ...[
                   const SizedBox(height: 2),
-                  Text(
-                    gymName,
-                    style: GymGoTypography.bodySmall.copyWith(
-                      color: GymGoColors.textTertiary,
-                    ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      if (gymName != null)
+                        Flexible(
+                          child: Text(
+                            gymName,
+                            style: GymGoTypography.bodySmall.copyWith(
+                              color: GymGoColors.textTertiary,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      if (gymName != null && locationName != null) ...[
+                        Text(
+                          ' · ',
+                          style: GymGoTypography.bodySmall.copyWith(
+                            color: GymGoColors.textTertiary,
+                          ),
+                        ),
+                      ],
+                      if (locationName != null)
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              LucideIcons.mapPin,
+                              size: 12,
+                              color: GymGoColors.textTertiary,
+                            ),
+                            const SizedBox(width: 2),
+                            Text(
+                              locationName,
+                              style: GymGoTypography.bodySmall.copyWith(
+                                color: GymGoColors.textTertiary,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                    ],
                   ),
                 ],
               ],
