@@ -10,8 +10,56 @@ class RoutinesRepository {
 
   final SupabaseClient _client;
 
-  /// Get all routines assigned to the current member
-  /// This is the main method for mobile users to see their routines
+  /// Get user context from profiles (works for ALL users including admin)
+  /// Returns organizationId and optional memberId
+  /// Tries to find member by user_id first, then by email if not found
+  Future<({String organizationId, String? memberId})?> _getUserContext() async {
+    final user = _client.auth.currentUser;
+    if (user == null) return null;
+
+    // Get organization and email from profile (works for ALL users)
+    final profileResponse = await _client
+        .from('profiles')
+        .select('organization_id, email')
+        .eq('id', user.id)
+        .maybeSingle();
+
+    if (profileResponse == null || profileResponse['organization_id'] == null) {
+      debugPrint('RoutinesRepository: No profile or organization found');
+      return null;
+    }
+
+    final organizationId = profileResponse['organization_id'] as String;
+    final email = profileResponse['email'] as String?;
+
+    // Try to get member ID by user_id first
+    var memberResponse = await _client
+        .from('members')
+        .select('id')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+    // If not found by user_id, try by email (for members created before account linking)
+    if (memberResponse == null && email != null) {
+      debugPrint('RoutinesRepository: No member by user_id, trying by email: $email');
+      memberResponse = await _client
+          .from('members')
+          .select('id')
+          .eq('email', email)
+          .eq('organization_id', organizationId)
+          .maybeSingle();
+    }
+
+    final memberId = memberResponse?['id'] as String?;
+
+    debugPrint('RoutinesRepository: Context - org: $organizationId, member: $memberId, email: $email');
+
+    return (organizationId: organizationId, memberId: memberId);
+  }
+
+  /// Get all routines assigned to the current user
+  /// "Mis Rutinas" always shows only routines assigned to the current member
+  /// (regardless of whether they're admin or not - admin can also train)
   Future<List<Routine>> getMyRoutines() async {
     try {
       final user = _client.auth.currentUser;
@@ -22,29 +70,24 @@ class RoutinesRepository {
 
       debugPrint('RoutinesRepository: Fetching routines for user: ${user.id}');
 
-      // First get the member record for this user
-      final memberResponse = await _client
-          .from('members')
-          .select('id, organization_id')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-      if (memberResponse == null) {
-        debugPrint('RoutinesRepository: No member found for user');
+      final context = await _getUserContext();
+      if (context == null) {
+        debugPrint('RoutinesRepository: No user context found');
         return [];
       }
 
-      final memberId = memberResponse['id'] as String;
-      final organizationId = memberResponse['organization_id'] as String;
+      // If user doesn't have a member record, they can't have assigned routines
+      if (context.memberId == null) {
+        debugPrint('RoutinesRepository: No member record - no assigned routines');
+        return [];
+      }
 
-      debugPrint('RoutinesRepository: Found member: $memberId, org: $organizationId');
-
-      // Fetch routines assigned to this member
+      // Get routines assigned to this member
       final response = await _client
           .from('workouts')
           .select()
-          .eq('assigned_to_member_id', memberId)
-          .eq('organization_id', organizationId)
+          .eq('assigned_to_member_id', context.memberId!)
+          .eq('organization_id', context.organizationId)
           .eq('is_active', true)
           .order('scheduled_date', ascending: true, nullsFirst: false)
           .order('created_at', ascending: false);
@@ -64,6 +107,7 @@ class RoutinesRepository {
   }
 
   /// Get a single routine by ID with full exercise details
+  /// User can access their own assigned routines within their org
   Future<Routine?> getRoutineById(String routineId) async {
     try {
       final user = _client.auth.currentUser;
@@ -71,25 +115,16 @@ class RoutinesRepository {
 
       debugPrint('RoutinesRepository: Fetching routine: $routineId');
 
-      // Get member info first
-      final memberResponse = await _client
-          .from('members')
-          .select('id, organization_id')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-      if (memberResponse == null) return null;
-
-      final memberId = memberResponse['id'] as String;
-      final organizationId = memberResponse['organization_id'] as String;
+      final context = await _getUserContext();
+      if (context == null || context.memberId == null) return null;
 
       // Fetch the routine (must be assigned to this member)
       final response = await _client
           .from('workouts')
           .select()
           .eq('id', routineId)
-          .eq('assigned_to_member_id', memberId)
-          .eq('organization_id', organizationId)
+          .eq('assigned_to_member_id', context.memberId!)
+          .eq('organization_id', context.organizationId)
           .maybeSingle();
 
       if (response == null) {
@@ -117,21 +152,14 @@ class RoutinesRepository {
       final user = _client.auth.currentUser;
       if (user == null) return [];
 
-      // Get organization from member
-      final memberResponse = await _client
-          .from('members')
-          .select('organization_id')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-      if (memberResponse == null) return [];
-
-      final organizationId = memberResponse['organization_id'] as String;
+      // Get organization from context (works for both admin and members)
+      final context = await _getUserContext();
+      if (context == null) return [];
 
       var query = _client
           .from('workouts')
           .select()
-          .eq('organization_id', organizationId)
+          .eq('organization_id', context.organizationId)
           .eq('is_template', true)
           .eq('is_active', true);
 

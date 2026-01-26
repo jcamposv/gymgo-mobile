@@ -83,4 +83,12 @@ class Routes {
   static const String benchmarksName = 'benchmarks';
   static const String benchmarksPrsName = 'benchmarks-prs';
   static const String benchmarksPrDetailName = 'benchmarks-pr-detail';
+
+  // Program routes (new training programs system)
+  static const String memberProgram = '/member/program/:programId';
+  static const String memberWorkout = '/member/workout/:workoutId';
+
+  // Program route names
+  static const String memberProgramName = 'member-program';
+  static const String memberWorkoutName = 'member-workout';
 }

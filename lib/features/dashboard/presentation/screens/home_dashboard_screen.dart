@@ -13,9 +13,10 @@ import '../../../profile/presentation/providers/member_providers.dart';
 import '../widgets/admin_tools_card.dart';
 import '../widgets/home_header.dart';
 import '../widgets/next_class_card.dart';
-import '../widgets/today_workout_card.dart';
 import '../widgets/last_measurement_card.dart';
 import '../widgets/quick_actions_grid.dart';
+import '../../../routines/presentation/widgets/today_workout_card.dart';
+import '../../../routines/presentation/providers/programs_providers.dart';
 
 /// Home Dashboard Screen with smart cards
 class HomeDashboardScreen extends ConsumerWidget {
@@ -36,6 +37,7 @@ class HomeDashboardScreen extends ConsumerWidget {
             // Refresh all data providers
             ref.invalidate(nextUserClassProvider);
             ref.invalidate(gymBrandingProvider);
+            ref.invalidate(todaysWorkoutProvider);
           },
           color: GymGoColors.primary,
           backgroundColor: GymGoColors.surface,
@@ -155,23 +157,15 @@ class HomeDashboardScreen extends ConsumerWidget {
                 child: SizedBox(height: GymGoSpacing.md),
               ),
 
-              // Today's Workout Card - Still placeholder (workouts feature not implemented)
+              // Today's Workout Card - Connected to Training Programs
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(
                     horizontal: GymGoSpacing.screenHorizontal,
                   ),
-                  child: TodayWorkoutCard(
-                    isLoading: false,
-                    workoutName: null, // Will show empty state
-                    exerciseCount: null,
-                    estimatedDuration: null,
-                    muscleGroups: null,
-                    isCompleted: false,
-                    onTap: () => context.go('/member/workouts'),
-                    onStart: () => context.go('/member/workouts'),
-                    onViewAll: () => context.go('/member/workouts'),
-                  ).animate().fadeIn(duration: 300.ms, delay: 300.ms),
+                  child: const TodayWorkoutCard()
+                      .animate()
+                      .fadeIn(duration: 300.ms, delay: 300.ms),
                 ),
               ),
 

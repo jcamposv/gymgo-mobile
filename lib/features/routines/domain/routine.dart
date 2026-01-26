@@ -154,7 +154,7 @@ class ExerciseItem extends Equatable {
       ];
 }
 
-/// Main Routine entity
+/// Main Routine entity (also used for program days)
 class Routine extends Equatable {
   const Routine({
     required this.id,
@@ -175,6 +175,12 @@ class Routine extends Equatable {
     // Joined member data
     this.memberName,
     this.memberEmail,
+    // Program fields (Migration 027)
+    this.programId,
+    this.dayNumber,
+    this.durationWeeks,
+    this.daysPerWeek,
+    this.programStartDate,
   });
 
   final String id;
@@ -196,6 +202,19 @@ class Routine extends Equatable {
   // Joined member data
   final String? memberName;
   final String? memberEmail;
+
+  // Program fields (Migration 027)
+  final String? programId;       // Parent program ID (null = this IS a program or standalone)
+  final int? dayNumber;          // Day number in program (1-6)
+  final int? durationWeeks;      // Program duration in weeks (4, 6, 8, 12)
+  final int? daysPerWeek;        // Training days per week (2-6)
+  final DateTime? programStartDate; // When member started program
+
+  /// Check if this is a program parent (has days)
+  bool get isProgram => programId == null && daysPerWeek != null;
+
+  /// Check if this is a program day (child of a program)
+  bool get isProgramDay => programId != null && dayNumber != null;
 
   /// Get exercise count
   int get exerciseCount => exercises.length;
@@ -269,6 +288,14 @@ class Routine extends Equatable {
       updatedAt: DateTime.parse(json['updated_at'] as String),
       memberName: memberName,
       memberEmail: memberEmail,
+      // Program fields (Migration 027)
+      programId: json['program_id'] as String?,
+      dayNumber: json['day_number'] as int?,
+      durationWeeks: json['duration_weeks'] as int?,
+      daysPerWeek: json['days_per_week'] as int?,
+      programStartDate: json['program_start_date'] != null
+          ? DateTime.parse(json['program_start_date'] as String)
+          : null,
     );
   }
 
@@ -287,6 +314,9 @@ class Routine extends Equatable {
         isTemplate,
         isActive,
         createdAt,
+        programId,
+        dayNumber,
+        daysPerWeek,
       ];
 }
 

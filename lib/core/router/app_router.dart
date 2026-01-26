@@ -15,6 +15,8 @@ import '../../features/progress/presentation/screens/progress_screen.dart';
 import '../../features/measurements/presentation/screens/measurements_screen.dart';
 import '../../features/routines/presentation/screens/routines_screen.dart';
 import '../../features/routines/presentation/screens/routine_detail_screen.dart';
+import '../../features/routines/presentation/screens/program_overview_screen.dart';
+import '../../features/routines/presentation/screens/workout_day_screen.dart';
 import '../../features/notifications/presentation/screens/notifications_screen.dart';
 import '../../features/profile/presentation/screens/profile_screen.dart';
 import '../../features/profile/presentation/screens/notification_settings_screen.dart';
@@ -128,6 +130,34 @@ final routerProvider = Provider<GoRouter>((ref) {
             context,
             state,
             RoutineDetailScreen(routineId: routineId),
+          );
+        },
+      ),
+
+      // Program overview (full screen, no bottom nav)
+      GoRoute(
+        path: '/member/program/:programId',
+        name: Routes.memberProgramName,
+        pageBuilder: (context, state) {
+          final programId = state.pathParameters['programId']!;
+          return _buildPageWithTransition(
+            context,
+            state,
+            ProgramOverviewScreen(programId: programId),
+          );
+        },
+      ),
+
+      // Workout day detail (full screen, no bottom nav)
+      GoRoute(
+        path: '/member/workout/:workoutId',
+        name: Routes.memberWorkoutName,
+        pageBuilder: (context, state) {
+          final workoutId = state.pathParameters['workoutId']!;
+          return _buildPageWithTransition(
+            context,
+            state,
+            WorkoutDayScreen(workoutId: workoutId),
           );
         },
       ),
