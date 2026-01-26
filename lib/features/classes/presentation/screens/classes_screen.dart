@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../core/theme/gymgo_typography.dart';
 import '../../../../shared/ui/components/components.dart';
 import '../../domain/booking_limit.dart';
+import '../../../membership/domain/membership_models.dart';
 import '../providers/classes_providers.dart';
 import '../widgets/class_card.dart';
 import '../widgets/day_selector.dart';
@@ -285,6 +287,11 @@ class ClassesScreen extends ConsumerWidget {
       if (context.mounted) {
         GymGoToast.success(context, 'Reserva confirmada');
       }
+    } on MembershipExpiredException catch (e) {
+      // Handle membership expired
+      if (context.mounted) {
+        _showMembershipExpiredDialog(context, e.toString());
+      }
     } on DailyClassLimitException catch (e) {
       // Handle daily limit reached (WEB contract)
       if (context.mounted) {
@@ -303,6 +310,55 @@ class ClassesScreen extends ConsumerWidget {
         GymGoToast.error(context, e.toString());
       }
     }
+  }
+
+  void _showMembershipExpiredDialog(BuildContext context, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: GymGoColors.surface,
+        icon: Container(
+          width: 64,
+          height: 64,
+          decoration: BoxDecoration(
+            color: GymGoColors.error.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(GymGoSpacing.radiusLg),
+          ),
+          child: const Icon(
+            LucideIcons.alertCircle,
+            size: 32,
+            color: GymGoColors.error,
+          ),
+        ),
+        title: const Text('Membresía Vencida'),
+        content: Text(
+          message,
+          textAlign: TextAlign.center,
+          style: GymGoTypography.bodyMedium.copyWith(
+            color: GymGoColors.textSecondary,
+          ),
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cerrar'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(context).pop();
+              context.push('/membership');
+            },
+            icon: const Icon(LucideIcons.creditCard, size: 16),
+            label: const Text('Ver Membresía'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: GymGoColors.primary,
+              foregroundColor: GymGoColors.background,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _handleCancel(BuildContext context, WidgetRef ref, String classId) async {

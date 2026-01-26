@@ -36,6 +36,8 @@ import '../../features/finances/presentation/screens/create_income_screen.dart';
 import '../../features/benchmarks/presentation/screens/benchmarks_screen.dart';
 import '../../features/benchmarks/presentation/screens/prs_screen.dart';
 import '../../features/benchmarks/presentation/screens/pr_detail_screen.dart';
+import '../../features/membership/presentation/screens/membership_screen.dart';
+import '../../features/membership/presentation/screens/payment_history_screen.dart';
 import '../services/notification_service.dart';
 import 'routes.dart';
 
@@ -342,6 +344,26 @@ final routerProvider = Provider<GoRouter>((ref) {
             PRDetailScreen(exerciseId: exerciseId),
           );
         },
+      ),
+
+      // Membership routes (full screen, no bottom nav)
+      GoRoute(
+        path: Routes.membership,
+        name: Routes.membershipName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const MembershipScreen(),
+        ),
+      ),
+      GoRoute(
+        path: Routes.membershipPayments,
+        name: Routes.membershipPaymentsName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const PaymentHistoryScreen(),
+        ),
       ),
 
       // Main app shell with bottom navigation

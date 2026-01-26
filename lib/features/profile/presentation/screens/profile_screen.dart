@@ -118,6 +118,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 title: 'Cuenta',
                 items: [
                   _SettingsItem(
+                    icon: LucideIcons.creditCard,
+                    label: 'Mi Membresía',
+                    onTap: () => context.push(Routes.membership),
+                  ),
+                  _SettingsItem(
                     icon: LucideIcons.user,
                     label: 'Datos personales',
                     onTap: () {},

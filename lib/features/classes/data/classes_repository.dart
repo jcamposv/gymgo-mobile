@@ -3,6 +3,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../domain/gym_class.dart';
 import '../domain/booking_limit.dart';
 import '../../../shared/data/organization_settings_repository.dart';
+import '../../membership/domain/membership_models.dart';
 import 'booking_limit_service.dart';
 
 /// Repository for class/reservation operations with Supabase
@@ -53,6 +54,47 @@ class ClassesRepository {
     } catch (e) {
       debugPrint('ClassesRepository._getMemberId error: $e');
       return null;
+    }
+  }
+
+  /// Validate that member has an active membership for booking
+  /// Throws [MembershipExpiredException] if membership is expired or inactive
+  Future<void> _validateMembershipForBooking(String memberId) async {
+    try {
+      final memberData = await _supabase
+          .from('members')
+          .select('membership_status, membership_end_date')
+          .eq('id', memberId)
+          .single();
+
+      final status = memberData['membership_status'] as String?;
+      final endDateStr = memberData['membership_end_date'] as String?;
+
+      // Check if membership is active or expiring_soon (both can book)
+      if (status == 'expired') {
+        String message = 'Tu membresía ha vencido.';
+        if (endDateStr != null) {
+          final endDate = DateTime.parse(endDateStr);
+          final formatted = '${endDate.day.toString().padLeft(2, '0')}/'
+              '${endDate.month.toString().padLeft(2, '0')}/'
+              '${endDate.year}';
+          message = 'Tu membresía venció el $formatted.';
+        }
+        throw MembershipExpiredException('$message Renueva para poder reservar clases.');
+      }
+
+      if (status == 'no_membership' || status == null) {
+        throw const MembershipExpiredException(
+          'No tienes una membresía activa. Adquiere un plan para reservar clases.',
+        );
+      }
+
+      // 'active' and 'expiring_soon' statuses are allowed to book
+      debugPrint('ClassesRepository: Membership status=$status - booking allowed');
+    } catch (e) {
+      if (e is MembershipExpiredException) rethrow;
+      debugPrint('ClassesRepository._validateMembershipForBooking error: $e');
+      // Don't block booking if we can't verify status (fail open for now)
     }
   }
 
@@ -150,16 +192,21 @@ class ClassesRepository {
   ///
   /// Validates:
   /// 1. User is authenticated as a member
-  /// 2. Class has capacity
-  /// 3. User doesn't already have a booking
-  /// 4. Daily booking limit not exceeded (WEB contract)
+  /// 2. Membership is active (not expired)
+  /// 3. Class has capacity
+  /// 4. User doesn't already have a booking
+  /// 5. Daily booking limit not exceeded (WEB contract)
   ///
+  /// Throws [MembershipExpiredException] if membership is expired.
   /// Throws [DailyClassLimitException] if daily limit is reached.
   Future<void> reserveClass(String classId) async {
     final memberId = await _getMemberId();
     if (memberId == null) {
       throw Exception('Usuario no autenticado o no es miembro');
     }
+
+    // Check membership status before allowing booking
+    await _validateMembershipForBooking(memberId);
 
     // Get class info including start_time for daily limit check
     final classData = await _supabase

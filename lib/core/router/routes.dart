@@ -91,4 +91,12 @@ class Routes {
   // Program route names
   static const String memberProgramName = 'member-program';
   static const String memberWorkoutName = 'member-workout';
+
+  // Membership routes
+  static const String membership = '/membership';
+  static const String membershipPayments = '/membership/payments';
+
+  // Membership route names
+  static const String membershipName = 'membership';
+  static const String membershipPaymentsName = 'membership-payments';
 }
