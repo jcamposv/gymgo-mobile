@@ -83,19 +83,21 @@ class AuthNotifier extends StateNotifier<app.AuthState> {
   }
 
   /// Send password reset email
-  Future<bool> sendPasswordReset({required String email}) async {
-    state = const app.AuthLoading();
+  /// Returns a record with (success, errorMessage)
+  /// Does NOT change global auth state to avoid router flicker
+  Future<({bool success, String? error})> sendPasswordReset({required String email}) async {
+    // Don't set AuthLoading - let the form handle its own loading state
+    // This prevents RouterRefreshNotifier from triggering unnecessary redirects
 
     try {
       await _repository.sendPasswordResetEmail(email: email);
-      state = app.PasswordResetSent(email: email);
-      return true;
+      // Don't set PasswordResetSent state - let the form handle success UI
+      // This keeps auth state clean and avoids race conditions with Supabase listener
+      return (success: true, error: null);
     } on GymGoAuthException catch (e) {
-      state = app.AuthError(message: e.message, code: e.code);
-      return false;
+      return (success: false, error: e.message);
     } catch (e) {
-      state = app.AuthError(message: e.toString());
-      return false;
+      return (success: false, error: 'No pudimos enviar el correo. Intenta de nuevo.');
     }
   }
 

@@ -8,7 +8,6 @@ import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../core/theme/gymgo_typography.dart';
 import '../../../../shared/ui/components/components.dart';
-import '../../domain/auth_state.dart' as app;
 import '../providers/auth_providers.dart';
 import '../providers/forgot_password_provider.dart';
 
@@ -46,30 +45,26 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     ref.read(forgotPasswordFormProvider.notifier).setSubmitting(true);
 
     // Send reset email
-    final success = await ref.read(authProvider.notifier).sendPasswordReset(
+    final result = await ref.read(authProvider.notifier).sendPasswordReset(
           email: formState.email,
         );
 
     ref.read(forgotPasswordFormProvider.notifier).setSubmitting(false);
 
-    if (success) {
+    if (result.success) {
       ref.read(forgotPasswordFormProvider.notifier).setSuccess(true);
+    } else if (result.error != null && mounted) {
+      // Show error message
+      GymGoToast.error(context, result.error!);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final formState = ref.watch(forgotPasswordFormProvider);
-    final authState = ref.watch(authProvider);
-    final isLoading = formState.isSubmitting || authState is app.AuthLoading;
-
-    // Listen for auth errors
-    ref.listen<app.AuthState>(authProvider, (previous, next) {
-      if (next is app.AuthError) {
-        GymGoToast.error(context, next.message);
-        ref.read(authProvider.notifier).clearError();
-      }
-    });
+    // Use only form's submitting state - not global auth state
+    // This prevents flicker from auth state changes
+    final isLoading = formState.isSubmitting;
 
     return Scaffold(
       backgroundColor: GymGoColors.background,
