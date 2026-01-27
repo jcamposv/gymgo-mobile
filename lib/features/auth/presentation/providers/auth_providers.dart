@@ -46,11 +46,15 @@ class AuthNotifier extends StateNotifier<app.AuthState> {
   }
 
   /// Sign in with email and password
-  Future<void> signIn({
+  /// Returns error message if failed, null if success
+  /// Only updates auth state on SUCCESS (to trigger navigation to home)
+  /// Does NOT set AuthLoading or AuthError to avoid router flicker
+  Future<String?> signIn({
     required String email,
     required String password,
   }) async {
-    state = const app.AuthLoading();
+    // Don't set AuthLoading - let the form handle its own loading state
+    // This prevents RouterRefreshNotifier from triggering unnecessary refreshes
 
     try {
       final response = await _repository.signInWithEmail(
@@ -59,6 +63,7 @@ class AuthNotifier extends StateNotifier<app.AuthState> {
       );
 
       if (response.session != null && response.user != null) {
+        // Only set Authenticated state on success - this triggers redirect to home
         state = app.Authenticated(
           user: response.user!,
           session: response.session!,
@@ -70,15 +75,14 @@ class AuthNotifier extends StateNotifier<app.AuthState> {
         } catch (e) {
           debugPrint('Error syncing push token after login: $e');
         }
+        return null; // Success
       } else {
-        state = const app.AuthError(
-          message: 'No se pudo iniciar sesión. Intenta de nuevo.',
-        );
+        return 'No se pudo iniciar sesión. Intenta de nuevo.';
       }
     } on GymGoAuthException catch (e) {
-      state = app.AuthError(message: e.message, code: e.code);
+      return e.message;
     } catch (e) {
-      state = app.AuthError(message: e.toString());
+      return 'Error de conexión. Verifica tu internet e intenta de nuevo.';
     }
   }
 

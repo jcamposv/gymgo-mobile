@@ -8,7 +8,6 @@ import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../core/theme/gymgo_typography.dart';
 import '../../../../shared/ui/components/components.dart';
-import '../../domain/auth_state.dart' as app;
 import '../providers/auth_providers.dart';
 import '../providers/login_form_provider.dart';
 
@@ -50,27 +49,28 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
 
     final formState = ref.read(loginFormProvider);
+    ref.read(loginFormProvider.notifier).setSubmitting(true);
 
     // Attempt login
-    await ref.read(authProvider.notifier).signIn(
+    final error = await ref.read(authProvider.notifier).signIn(
           email: formState.email,
           password: formState.password,
         );
+
+    // Only reset submitting if still mounted and there was an error
+    // (on success, we navigate away so no need to reset)
+    if (error != null && mounted) {
+      ref.read(loginFormProvider.notifier).setSubmitting(false);
+      GymGoToast.error(context, error);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final formState = ref.watch(loginFormProvider);
-    final authState = ref.watch(authProvider);
-    final isLoading = authState is app.AuthLoading;
-
-    // Listen for auth errors
-    ref.listen<app.AuthState>(authProvider, (previous, next) {
-      if (next is app.AuthError) {
-        GymGoToast.error(context, next.message);
-        ref.read(authProvider.notifier).clearError();
-      }
-    });
+    // Use form's submitting state instead of global auth state
+    // This prevents router flicker from auth state changes
+    final isLoading = formState.isSubmitting;
 
     return Scaffold(
       backgroundColor: GymGoColors.background,
