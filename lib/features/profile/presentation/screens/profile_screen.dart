@@ -14,6 +14,7 @@ import '../../../../shared/ui/components/components.dart';
 import '../../../../shared/providers/branding_providers.dart';
 import '../../../../shared/providers/location_providers.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
+import '../providers/member_providers.dart';
 import '../widgets/change_password_sheet.dart';
 
 /// Profile screen with user info and settings
@@ -43,23 +44,54 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
 
     try {
       final supabase = Supabase.instance.client;
-      final response = await supabase
+
+      // First try by profile_id (matches currentMemberProvider logic)
+      var response = await supabase
           .from('members')
           .select()
-          .eq('user_id', user.id)
+          .eq('profile_id', user.id)
           .maybeSingle();
 
+      // Fallback: try by user_id if not found
+      if (response == null) {
+        response = await supabase
+            .from('members')
+            .select()
+            .eq('user_id', user.id)
+            .maybeSingle();
+      }
+
+      // Fallback: try by email with organization
+      if (response == null && user.email != null) {
+        final profileResponse = await supabase
+            .from('profiles')
+            .select('organization_id')
+            .eq('id', user.id)
+            .maybeSingle();
+
+        final organizationId = profileResponse?['organization_id'] as String?;
+
+        if (organizationId != null) {
+          response = await supabase
+              .from('members')
+              .select()
+              .eq('email', user.email!)
+              .eq('organization_id', organizationId)
+              .maybeSingle();
+        }
+      }
+
       if (response != null) {
-        debugPrint('Member data: $response');
-        debugPrint('avatar_url from DB: ${response['avatar_url']}');
+        debugPrint('ProfileScreen: Member loaded - avatar_url: ${response['avatar_url']}');
         final member = Member.fromJson(response);
-        debugPrint('Parsed member - avatarPath: ${member.avatarPath}, profileImageUrl: ${member.profileImageUrl}');
+        debugPrint('ProfileScreen: Parsed - avatarPath: ${member.avatarPath}, profileImageUrl: ${member.profileImageUrl}');
         setState(() {
           _member = member;
           _isLoadingMember = false;
         });
       } else {
         // Create member from user data if not exists
+        debugPrint('ProfileScreen: No member found, using fallback');
         setState(() {
           _member = Member(
             id: user.id,
@@ -70,7 +102,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading member: $e');
+      debugPrint('ProfileScreen: Error loading member: $e');
       // Fallback to user data
       setState(() {
         _member = Member(
@@ -397,16 +429,24 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   Future<void> _removeProfilePhoto(SupabaseClient supabase) async {
     if (_member == null) return;
 
-    await supabase.from('members').update({
-      'avatar_url': null,
-    }).eq('id', _member!.id);
+    debugPrint('ProfileScreen: Removing profile photo for member ${_member!.id}');
 
+    final result = await supabase.from('members').update({
+      'avatar_url': null,
+    }).eq('id', _member!.id).select();
+
+    debugPrint('ProfileScreen: Remove photo result: $result');
+
+    // Update local state
     setState(() {
       _member = _member!.copyWith(
         clearProfileImageUrl: true,
         clearAvatarPath: true,
       );
     });
+
+    // Invalidate provider to ensure consistency
+    ref.invalidate(currentMemberProvider);
   }
 
   Future<void> _setAvatarPath(SupabaseClient supabase, String avatarPath) async {
@@ -415,16 +455,28 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     // Convert mobile path to web format: avatar_2/avatar_01.svg -> /avatar/avatar_01.svg
     final webAvatarUrl = avatarPath.replaceFirst('avatar_2/', '/avatar/');
 
-    await supabase.from('members').update({
-      'avatar_url': webAvatarUrl,
-    }).eq('id', _member!.id);
+    debugPrint('ProfileScreen: Setting avatar path: $avatarPath -> $webAvatarUrl');
 
+    final result = await supabase.from('members').update({
+      'avatar_url': webAvatarUrl,
+    }).eq('id', _member!.id).select();
+
+    debugPrint('ProfileScreen: Set avatar result: $result');
+
+    if (result.isEmpty) {
+      debugPrint('ProfileScreen: WARNING - Update returned empty, avatar may not have been saved');
+    }
+
+    // Update local state
     setState(() {
       _member = _member!.copyWith(
         avatarPath: avatarPath,
         clearProfileImageUrl: true,
       );
     });
+
+    // Invalidate provider to ensure consistency
+    ref.invalidate(currentMemberProvider);
   }
 
   Future<void> _uploadProfileImage(SupabaseClient supabase, File file) async {
@@ -434,6 +486,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final timestamp = DateTime.now().millisecondsSinceEpoch;
     final fileName = 'profile_${memberId}_$timestamp.jpg';
     final storagePath = 'profiles/$memberId/$fileName';
+
+    debugPrint('ProfileScreen: Uploading profile image to $storagePath');
 
     // Upload to Supabase Storage
     await supabase.storage.from('avatars').upload(
@@ -445,20 +499,33 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           ),
         );
 
-    // Get public URL
-    final publicUrl = supabase.storage.from('avatars').getPublicUrl(storagePath);
+    // Get public URL with cache-busting parameter
+    final baseUrl = supabase.storage.from('avatars').getPublicUrl(storagePath);
+    final publicUrl = '$baseUrl?v=$timestamp';
+
+    debugPrint('ProfileScreen: Uploaded, public URL: $publicUrl');
 
     // Update member in database - web uses avatar_url for everything
-    await supabase.from('members').update({
+    final result = await supabase.from('members').update({
       'avatar_url': publicUrl,
-    }).eq('id', _member!.id);
+    }).eq('id', _member!.id).select();
 
+    debugPrint('ProfileScreen: Upload photo result: $result');
+
+    if (result.isEmpty) {
+      debugPrint('ProfileScreen: WARNING - Update returned empty, image may not have been saved');
+    }
+
+    // Update local state
     setState(() {
       _member = _member!.copyWith(
         profileImageUrl: publicUrl,
         clearAvatarPath: true,
       );
     });
+
+    // Invalidate provider to ensure consistency
+    ref.invalidate(currentMemberProvider);
   }
 
   Widget _buildSettingsSection({

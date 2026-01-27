@@ -151,10 +151,9 @@ class _MemberDetailsHeaderState extends ConsumerState<MemberDetailsHeader> {
   }
 
   Future<void> _removeProfilePhoto(SupabaseClient supabase) async {
-    // Update member in database
+    // Update member in database - use avatar_url for consistency with web
     await supabase.from('members').update({
-      'profile_image_url': null,
-      'avatar_path': null,
+      'avatar_url': null,
     }).eq('id', _currentMember.id);
 
     setState(() {
@@ -166,10 +165,12 @@ class _MemberDetailsHeaderState extends ConsumerState<MemberDetailsHeader> {
   }
 
   Future<void> _setAvatarPath(SupabaseClient supabase, String avatarPath) async {
-    // Update member in database
+    // Convert mobile path to web format: avatar_2/avatar_01.svg -> /avatar/avatar_01.svg
+    final webAvatarUrl = avatarPath.replaceFirst('avatar_2/', '/avatar/');
+
+    // Update member in database - use avatar_url for consistency with web
     await supabase.from('members').update({
-      'avatar_path': avatarPath,
-      'profile_image_url': null,
+      'avatar_url': webAvatarUrl,
     }).eq('id', _currentMember.id);
 
     setState(() {
@@ -199,13 +200,13 @@ class _MemberDetailsHeaderState extends ConsumerState<MemberDetailsHeader> {
           ),
         );
 
-    // Get public URL
-    final publicUrl = supabase.storage.from('avatars').getPublicUrl(storagePath);
+    // Get public URL with cache-busting parameter
+    final baseUrl = supabase.storage.from('avatars').getPublicUrl(storagePath);
+    final publicUrl = '$baseUrl?v=$timestamp';
 
-    // Update member in database
+    // Update member in database - use avatar_url for consistency with web
     await supabase.from('members').update({
-      'profile_image_url': publicUrl,
-      'avatar_path': null,
+      'avatar_url': publicUrl,
     }).eq('id', _currentMember.id);
 
     setState(() {

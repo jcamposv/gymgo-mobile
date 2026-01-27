@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/config/avatars.dart';
 import '../../../../core/router/routes.dart';
 import '../../../../core/theme/gymgo_colors.dart';
@@ -15,9 +14,10 @@ import '../../../../shared/providers/branding_providers.dart';
 import '../../../../shared/providers/location_providers.dart';
 import '../../../auth/presentation/providers/auth_providers.dart';
 import '../../../notifications/presentation/providers/inbox_providers.dart';
+import '../../../profile/presentation/providers/member_providers.dart';
 
 /// Home header with gym logo, greeting, and user avatar
-class HomeHeader extends ConsumerStatefulWidget {
+class HomeHeader extends ConsumerWidget {
   const HomeHeader({
     super.key,
     this.onNotificationsTap,
@@ -28,46 +28,15 @@ class HomeHeader extends ConsumerStatefulWidget {
   final VoidCallback? onAvatarTap;
 
   @override
-  ConsumerState<HomeHeader> createState() => _HomeHeaderState();
-}
-
-class _HomeHeaderState extends ConsumerState<HomeHeader> {
-  Member? _member;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadMemberData();
-  }
-
-  Future<void> _loadMemberData() async {
-    final user = ref.read(currentUserProvider);
-    if (user == null) return;
-
-    try {
-      final response = await Supabase.instance.client
-          .from('members')
-          .select()
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-      if (response != null && mounted) {
-        setState(() {
-          _member = Member.fromJson(response);
-        });
-      }
-    } catch (e) {
-      debugPrint('Error loading member for header: $e');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(currentUserProvider);
     final brandingAsync = ref.watch(gymBrandingProvider);
     final unreadCount = ref.watch(unreadCountProvider);
     final locationAsync = ref.watch(currentLocationProvider);
-    final userName = _member?.name ?? _extractUserName(user?.email);
+    // Use the provider for member data - auto-updates when profile changes
+    final memberAsync = ref.watch(currentMemberProvider);
+    final member = memberAsync.valueOrNull;
+    final userName = member?.name ?? _extractUserName(user?.email);
     final greeting = _getGreeting();
     final gymName = brandingAsync.whenOrNull(data: (b) => b.gymName);
     final locationName = locationAsync.whenOrNull(data: (l) => l?.name);
@@ -177,7 +146,7 @@ class _HomeHeaderState extends ConsumerState<HomeHeader> {
           const SizedBox(width: GymGoSpacing.xs),
 
           // User avatar
-          _buildUserAvatar(user?.email),
+          _buildUserAvatar(member, user?.email),
         ],
       ),
     );
@@ -245,11 +214,11 @@ class _HomeHeaderState extends ConsumerState<HomeHeader> {
     );
   }
 
-  Widget _buildUserAvatar(String? email) {
+  Widget _buildUserAvatar(Member? member, String? email) {
     final initials = _getInitials(email);
 
     return GestureDetector(
-      onTap: widget.onAvatarTap,
+      onTap: onAvatarTap,
       child: Container(
         width: 40,
         height: 40,
@@ -257,24 +226,24 @@ class _HomeHeaderState extends ConsumerState<HomeHeader> {
           borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
         ),
         clipBehavior: Clip.antiAlias,
-        child: _buildAvatarContent(initials),
+        child: _buildAvatarContent(member, initials),
       ),
     );
   }
 
-  Widget _buildAvatarContent(String initials) {
+  Widget _buildAvatarContent(Member? member, String initials) {
     // Check if member has profile image URL (uploaded photo)
-    if (_member?.profileImageUrl != null && _member!.profileImageUrl!.isNotEmpty) {
+    if (member?.profileImageUrl != null && member!.profileImageUrl!.isNotEmpty) {
       return Image.network(
-        _member!.profileImageUrl!,
+        member.profileImageUrl!,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) => _buildInitialsFallback(initials),
       );
     }
 
     // Check if member has avatar path (predefined avatar)
-    if (_member?.avatarPath != null && _member!.avatarPath!.isNotEmpty) {
-      final assetPath = AvatarConfig.getAvatarUrl(_member!.avatarPath!);
+    if (member?.avatarPath != null && member!.avatarPath!.isNotEmpty) {
+      final assetPath = AvatarConfig.getAvatarUrl(member.avatarPath!);
       return SvgPicture.asset(
         assetPath,
         fit: BoxFit.cover,
