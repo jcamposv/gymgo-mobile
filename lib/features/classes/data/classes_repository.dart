@@ -39,18 +39,38 @@ class ClassesRepository {
   }
 
   /// Get the member ID for the current user (may be null for non-member staff)
+  /// Checks both profile_id and user_id to handle different member linking methods
   Future<String?> _getMemberId() async {
     final userId = _supabase.auth.currentUser?.id;
     if (userId == null) return null;
 
     try {
-      final response = await _supabase
+      // First try by profile_id (preferred - matches currentMemberProvider logic)
+      var response = await _supabase
+          .from('members')
+          .select('id')
+          .eq('profile_id', userId)
+          .maybeSingle();
+
+      if (response != null) {
+        debugPrint('ClassesRepository._getMemberId: Found by profile_id');
+        return response['id'] as String?;
+      }
+
+      // Fallback: try by user_id
+      response = await _supabase
           .from('members')
           .select('id')
           .eq('user_id', userId)
           .maybeSingle();
 
-      return response?['id'] as String?;
+      if (response != null) {
+        debugPrint('ClassesRepository._getMemberId: Found by user_id');
+        return response['id'] as String?;
+      }
+
+      debugPrint('ClassesRepository._getMemberId: No member found');
+      return null;
     } catch (e) {
       debugPrint('ClassesRepository._getMemberId error: $e');
       return null;

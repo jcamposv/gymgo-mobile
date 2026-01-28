@@ -14,11 +14,34 @@ import '../widgets/day_selector.dart';
 import '../widgets/time_slot_selector.dart';
 
 /// Classes/Reservations screen with day selector and class list
-class ClassesScreen extends ConsumerWidget {
+class ClassesScreen extends ConsumerStatefulWidget {
   const ClassesScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ClassesScreen> createState() => _ClassesScreenState();
+}
+
+class _ClassesScreenState extends ConsumerState<ClassesScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Reset to today when entering the screen (Bug Fix #1)
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final today = DateTime.now();
+      final currentDate = ref.read(selectedDateProvider);
+      // Only reset if not already on today
+      if (!_isSameDay(currentDate, today)) {
+        ref.read(selectedDateProvider.notifier).state = today;
+      }
+    });
+  }
+
+  bool _isSameDay(DateTime a, DateTime b) {
+    return a.year == b.year && a.month == b.month && a.day == b.day;
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final selectedDate = ref.watch(selectedDateProvider);
     final weekDates = ref.watch(weekDatesProvider);
     final filteredClasses = ref.watch(filteredClassesProvider);
@@ -147,9 +170,7 @@ class ClassesScreen extends ConsumerWidget {
     return '${days[date.weekday - 1]}, ${date.day} de ${months[date.month - 1]}';
   }
 
-  bool _isSameDay(DateTime a, DateTime b) {
-    return a.year == b.year && a.month == b.month && a.day == b.day;
-  }
+  // _isSameDay is already defined above in initState block
 
   Widget _buildEmptyState(DateTime date) {
     final isPast = date.isBefore(DateTime.now().subtract(const Duration(days: 1)));

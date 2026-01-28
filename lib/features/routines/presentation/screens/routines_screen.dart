@@ -155,7 +155,14 @@ class RoutinesScreen extends ConsumerWidget {
                     child: RoutineCard(
                       routine: group.value[i],
                       onTap: () {
-                        context.push('/member/routines/${group.value[i].id}');
+                        final routine = group.value[i];
+                        // Bug Fix #3: Navigate to program overview for programs,
+                        // routine detail for individual routines/WODs
+                        if (routine.isProgram) {
+                          context.push('/member/program/${routine.id}');
+                        } else {
+                          context.push('/member/routines/${routine.id}');
+                        }
                       },
                     ),
                   ).animate().fadeIn(

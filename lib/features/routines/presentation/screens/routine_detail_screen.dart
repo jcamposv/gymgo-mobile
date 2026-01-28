@@ -9,6 +9,7 @@ import '../../../../core/theme/gymgo_typography.dart';
 import '../../../../shared/ui/components/components.dart';
 import '../../domain/routine.dart';
 import '../providers/routines_providers.dart';
+import '../providers/programs_providers.dart';
 import '../widgets/exercise_row.dart';
 import '../widgets/exercise_detail_sheet.dart';
 
@@ -27,6 +28,7 @@ class RoutineDetailScreen extends ConsumerStatefulWidget {
 
 class _RoutineDetailScreenState extends ConsumerState<RoutineDetailScreen> {
   bool _isRefreshing = false;
+  bool? _localCompletedOverride;
 
   Future<void> _refreshRoutine() async {
     if (_isRefreshing) return;
@@ -87,6 +89,12 @@ class _RoutineDetailScreenState extends ConsumerState<RoutineDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final routineAsync = ref.watch(routineByIdProvider(widget.routineId));
+    final completeState = ref.watch(completeWorkoutProvider);
+    final completedTodayAsync = ref.watch(workoutCompletedTodayProvider(widget.routineId));
+
+    // Use local override if set, otherwise use database value
+    final isCompletedToday = _localCompletedOverride ??
+        completedTodayAsync.valueOrNull ?? false;
 
     return Scaffold(
       backgroundColor: GymGoColors.background,
@@ -95,15 +103,21 @@ class _RoutineDetailScreenState extends ConsumerState<RoutineDetailScreen> {
           if (routine == null) {
             return _buildNotFound(context);
           }
-          return _buildContent(context, routine);
+          return _buildContent(context, routine, isCompletedToday);
         },
         loading: () => _buildLoading(),
         error: (error, _) => _buildError(context, error),
       ),
+      bottomNavigationBar: routineAsync.whenOrNull(
+        data: (routine) {
+          if (routine == null || !routine.isActive) return null;
+          return _buildBottomBar(context, routine, completeState, isCompletedToday);
+        },
+      ),
     );
   }
 
-  Widget _buildContent(BuildContext context, Routine routine) {
+  Widget _buildContent(BuildContext context, Routine routine, bool isCompletedToday) {
     return RefreshIndicator(
       onRefresh: _refreshRoutine,
       color: GymGoColors.primary,
@@ -128,6 +142,37 @@ class _RoutineDetailScreenState extends ConsumerState<RoutineDetailScreen> {
               ),
             ),
             actions: [
+              // Completed badge
+              if (isCompletedToday)
+                Container(
+                  margin: const EdgeInsets.only(right: GymGoSpacing.xs),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: GymGoSpacing.sm,
+                    vertical: GymGoSpacing.xs,
+                  ),
+                  decoration: BoxDecoration(
+                    color: GymGoColors.success.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(GymGoSpacing.radiusFull),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        LucideIcons.checkCircle,
+                        size: 14,
+                        color: GymGoColors.success,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Completado',
+                        style: GymGoTypography.labelSmall.copyWith(
+                          color: GymGoColors.success,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               // Refresh button
               IconButton(
                 onPressed: _isRefreshing ? null : _refreshRoutine,
@@ -587,6 +632,122 @@ class _RoutineDetailScreenState extends ConsumerState<RoutineDetailScreen> {
     );
   }
 
+  Widget _buildBottomBar(
+    BuildContext context,
+    Routine routine,
+    AsyncValue<dynamic> completeState,
+    bool isCompletedToday,
+  ) {
+    return Container(
+      padding: EdgeInsets.fromLTRB(
+        GymGoSpacing.screenHorizontal,
+        GymGoSpacing.md,
+        GymGoSpacing.screenHorizontal,
+        GymGoSpacing.md + MediaQuery.of(context).padding.bottom,
+      ),
+      decoration: const BoxDecoration(
+        color: GymGoColors.cardBackground,
+        border: Border(
+          top: BorderSide(color: GymGoColors.cardBorder),
+        ),
+      ),
+      child: SafeArea(
+        child: ElevatedButton(
+          onPressed: isCompletedToday || completeState.isLoading
+              ? null
+              : () => _showCompleteSheet(context, routine),
+          style: ElevatedButton.styleFrom(
+            backgroundColor:
+                isCompletedToday ? GymGoColors.success : GymGoColors.primary,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: GymGoColors.success.withValues(alpha: 0.5),
+            disabledForegroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(vertical: GymGoSpacing.md),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
+            ),
+          ),
+          child: completeState.isLoading
+              ? const SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      isCompletedToday
+                          ? LucideIcons.checkCircle
+                          : LucideIcons.checkCircle2,
+                      size: 20,
+                    ),
+                    const SizedBox(width: GymGoSpacing.sm),
+                    Text(
+                      isCompletedToday
+                          ? 'Entrenamiento completado'
+                          : 'Completar entrenamiento',
+                      style: GymGoTypography.bodyMedium.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+        ),
+      ),
+    );
+  }
+
+  void _showCompleteSheet(BuildContext context, Routine routine) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => _CompleteWorkoutSheet(
+        routine: routine,
+        onComplete: (duration, notes) async {
+          final success = await ref
+              .read(completeWorkoutProvider.notifier)
+              .completeWorkout(
+                routine.id,
+                durationMinutes: duration,
+                notes: notes,
+              );
+
+          if (success && mounted) {
+            setState(() {
+              _localCompletedOverride = true;
+            });
+
+            // Refresh providers
+            ref.invalidate(workoutCompletedTodayProvider(routine.id));
+            ref.invalidate(myRoutinesProvider);
+
+            // Show success
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('¡Entrenamiento completado!'),
+                backgroundColor: GymGoColors.success,
+              ),
+            );
+          } else if (mounted) {
+            final error = ref.read(completeWorkoutProvider).error;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(error?.toString() ?? 'Error al completar'),
+                backgroundColor: GymGoColors.error,
+              ),
+            );
+          }
+        },
+      ),
+    );
+  }
+
   int _getTotalSets(Routine routine) {
     return routine.exercises.fold(0, (sum, ex) => sum + (ex.sets ?? 1));
   }
@@ -669,5 +830,217 @@ class _StatCard extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// Bottom sheet for completing a workout
+class _CompleteWorkoutSheet extends StatefulWidget {
+  const _CompleteWorkoutSheet({
+    required this.routine,
+    required this.onComplete,
+  });
+
+  final Routine routine;
+  final Future<void> Function(int? duration, String? notes) onComplete;
+
+  @override
+  State<_CompleteWorkoutSheet> createState() => _CompleteWorkoutSheetState();
+}
+
+class _CompleteWorkoutSheetState extends State<_CompleteWorkoutSheet> {
+  final _durationController = TextEditingController();
+  final _notesController = TextEditingController();
+  bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill with estimated duration
+    _durationController.text = widget.routine.estimatedDuration.toString();
+  }
+
+  @override
+  void dispose() {
+    _durationController.dispose();
+    _notesController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: GymGoColors.cardBackground,
+        borderRadius: BorderRadius.vertical(
+          top: Radius.circular(GymGoSpacing.radiusLg),
+        ),
+      ),
+      padding: EdgeInsets.fromLTRB(
+        GymGoSpacing.screenHorizontal,
+        GymGoSpacing.md,
+        GymGoSpacing.screenHorizontal,
+        GymGoSpacing.lg + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Handle
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: GymGoColors.cardBorder,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+          ),
+          const SizedBox(height: GymGoSpacing.lg),
+
+          // Title
+          Row(
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: GymGoColors.success.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
+                ),
+                child: const Icon(
+                  LucideIcons.checkCircle,
+                  color: GymGoColors.success,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: GymGoSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Completar entrenamiento',
+                      style: GymGoTypography.headlineSmall,
+                    ),
+                    Text(
+                      widget.routine.name,
+                      style: GymGoTypography.bodySmall.copyWith(
+                        color: GymGoColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: GymGoSpacing.lg),
+
+          // Duration field
+          Text(
+            'Duración (minutos)',
+            style: GymGoTypography.labelMedium.copyWith(
+              color: GymGoColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: GymGoSpacing.xs),
+          TextField(
+            controller: _durationController,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+              hintText: 'Ej: 45',
+              prefixIcon: const Icon(LucideIcons.clock, size: 20),
+              filled: true,
+              fillColor: GymGoColors.surface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: GymGoSpacing.md),
+
+          // Notes field
+          Text(
+            'Notas (opcional)',
+            style: GymGoTypography.labelMedium.copyWith(
+              color: GymGoColors.textSecondary,
+            ),
+          ),
+          const SizedBox(height: GymGoSpacing.xs),
+          TextField(
+            controller: _notesController,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText: 'Cómo te sentiste, ajustes de peso, etc.',
+              filled: true,
+              fillColor: GymGoColors.surface,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+
+          const SizedBox(height: GymGoSpacing.lg),
+
+          // Submit button
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _isSubmitting ? null : _submit,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: GymGoColors.success,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: GymGoSpacing.md),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
+                ),
+              ),
+              child: _isSubmitting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text('Guardar y completar'),
+            ),
+          ),
+
+          const SizedBox(height: GymGoSpacing.sm),
+
+          // Cancel button
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancelar'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _submit() async {
+    setState(() {
+      _isSubmitting = true;
+    });
+
+    final duration = int.tryParse(_durationController.text);
+    final notes = _notesController.text.trim().isNotEmpty
+        ? _notesController.text.trim()
+        : null;
+
+    await widget.onComplete(duration, notes);
+
+    if (mounted) {
+      Navigator.of(context).pop();
+    }
   }
 }

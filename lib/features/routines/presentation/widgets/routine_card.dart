@@ -86,15 +86,29 @@ class RoutineCard extends StatelessWidget {
                 color: _getTypeColor(routine.workoutType),
               ),
 
-              // Exercise count
-              _buildChip(
-                icon: LucideIcons.listChecks,
-                label: '${routine.exerciseCount} ejercicios',
-                color: GymGoColors.info,
-              ),
+              // For programs: show days per week; for routines: show exercise count
+              if (routine.isProgram && routine.daysPerWeek != null)
+                _buildChip(
+                  icon: LucideIcons.calendar,
+                  label: '${routine.daysPerWeek} días/semana',
+                  color: GymGoColors.info,
+                )
+              else
+                _buildChip(
+                  icon: LucideIcons.listChecks,
+                  label: '${routine.exerciseCount} ejercicios',
+                  color: GymGoColors.info,
+                ),
 
-              // Duration estimate
-              if (routine.estimatedDuration > 0)
+              // For programs: show duration in weeks
+              if (routine.isProgram && routine.durationWeeks != null)
+                _buildChip(
+                  icon: LucideIcons.clock,
+                  label: '${routine.durationWeeks} semanas',
+                  color: GymGoColors.textTertiary,
+                )
+              // For non-programs: show estimated duration
+              else if (!routine.isProgram && routine.estimatedDuration > 0)
                 _buildChip(
                   icon: LucideIcons.clock,
                   label: '~${routine.estimatedDuration} min',
@@ -111,8 +125,8 @@ class RoutineCard extends StatelessWidget {
             ],
           ),
 
-          // Exercise preview (first 3 exercises)
-          if (routine.exercises.isNotEmpty) ...[
+          // Exercise preview (first 3 exercises) - only for non-programs
+          if (!routine.isProgram && routine.exercises.isNotEmpty) ...[
             const SizedBox(height: GymGoSpacing.md),
             const Divider(color: GymGoColors.cardBorder, height: 1),
             const SizedBox(height: GymGoSpacing.md),

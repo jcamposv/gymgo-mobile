@@ -83,12 +83,15 @@ class RoutinesRepository {
       }
 
       // Get routines assigned to this member
+      // Exclude program child records (they're accessed via their parent program)
+      // Only show parent programs and standalone routines (WEB contract: .is('program_id', null))
       final response = await _client
           .from('workouts')
           .select()
           .eq('assigned_to_member_id', context.memberId!)
           .eq('organization_id', context.organizationId)
           .eq('is_active', true)
+          .isFilter('program_id', null)  // Only parent programs and standalone routines
           .order('scheduled_date', ascending: true, nullsFirst: false)
           .order('created_at', ascending: false);
 

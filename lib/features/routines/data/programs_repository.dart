@@ -16,7 +16,7 @@ class ProgramsRepository {
   static const int _defaultDurationWeeks = 12;
 
   /// Get member context (id and organization_id)
-  /// Tries to find member by user_id first, then by email if not found
+  /// Tries to find member by profile_id first, then user_id, then by email
   Future<({String memberId, String organizationId})?> _getMemberContext() async {
     final user = _client.auth.currentUser;
     if (user == null) return null;
@@ -36,16 +36,39 @@ class ProgramsRepository {
     final organizationId = profileResponse['organization_id'] as String;
     final email = profileResponse['email'] as String?;
 
-    // Try to get member by user_id first
+    // Try to get member by profile_id first (preferred - matches currentMemberProvider)
     var memberResponse = await _client
+        .from('members')
+        .select('id')
+        .eq('profile_id', user.id)
+        .maybeSingle();
+
+    if (memberResponse != null) {
+      debugPrint('ProgramsRepository: Found member by profile_id');
+      return (
+        memberId: memberResponse['id'] as String,
+        organizationId: organizationId,
+      );
+    }
+
+    // Fallback: try by user_id
+    memberResponse = await _client
         .from('members')
         .select('id')
         .eq('user_id', user.id)
         .maybeSingle();
 
+    if (memberResponse != null) {
+      debugPrint('ProgramsRepository: Found member by user_id');
+      return (
+        memberId: memberResponse['id'] as String,
+        organizationId: organizationId,
+      );
+    }
+
     // If not found by user_id, try by email
-    if (memberResponse == null && email != null) {
-      debugPrint('ProgramsRepository: No member by user_id, trying by email: $email');
+    if (email != null) {
+      debugPrint('ProgramsRepository: Trying by email: $email');
       memberResponse = await _client
           .from('members')
           .select('id')
@@ -557,6 +580,30 @@ class ProgramsRepository {
     if (raw is List) return raw.cast<String>().join('\n');
     if (raw is String) return raw;
     return null;
+  }
+
+  /// Check if a workout is completed today
+  Future<bool> isWorkoutCompletedToday(String workoutId) async {
+    try {
+      final context = await _getMemberContext();
+      if (context == null) return false;
+
+      final today = DateTime.now();
+      final todayStr = '${today.year}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}';
+
+      final response = await _client
+          .from('workout_completions')
+          .select('id')
+          .eq('member_id', context.memberId)
+          .eq('workout_id', workoutId)
+          .eq('completed_date', todayStr)
+          .maybeSingle();
+
+      return response != null;
+    } catch (e) {
+      debugPrint('ProgramsRepository: Error checking completion: $e');
+      return false;
+    }
   }
 
   /// Get completion history for a program

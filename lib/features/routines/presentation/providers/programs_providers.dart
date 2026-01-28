@@ -101,6 +101,13 @@ final completeWorkoutProvider =
   return CompleteWorkoutNotifier(repository);
 });
 
+/// Check if a workout is completed today
+final workoutCompletedTodayProvider =
+    FutureProvider.family<bool, String>((ref, workoutId) async {
+  final repository = ref.watch(programsRepositoryProvider);
+  return repository.isWorkoutCompletedToday(workoutId);
+});
+
 /// Helper to refresh all program-related providers after completion
 void refreshProgramProviders(WidgetRef ref, String? programId) {
   ref.invalidate(todaysWorkoutProvider);
@@ -111,4 +118,10 @@ void refreshProgramProviders(WidgetRef ref, String? programId) {
     ref.invalidate(programProgressProvider(programId));
     ref.invalidate(completionHistoryProvider(programId));
   }
+}
+
+/// Helper to refresh workout completion status
+void refreshWorkoutCompletionStatus(WidgetRef ref, String workoutId, String? programId) {
+  ref.invalidate(workoutCompletedTodayProvider(workoutId));
+  refreshProgramProviders(ref, programId);
 }

@@ -26,12 +26,19 @@ class WorkoutDayScreen extends ConsumerStatefulWidget {
 }
 
 class _WorkoutDayScreenState extends ConsumerState<WorkoutDayScreen> {
-  bool _isCompletedToday = false;
+  // Track local completion state (updated after completing)
+  bool? _localCompletedOverride;
 
   @override
   Widget build(BuildContext context) {
     final workoutAsync = ref.watch(workoutByIdProvider(widget.workoutId));
     final completeState = ref.watch(completeWorkoutProvider);
+    // Bug Fix #4: Load completion status from database
+    final completedTodayAsync = ref.watch(workoutCompletedTodayProvider(widget.workoutId));
+
+    // Use local override if set, otherwise use database value
+    final isCompletedToday = _localCompletedOverride ??
+        completedTodayAsync.valueOrNull ?? false;
 
     return Scaffold(
       backgroundColor: GymGoColors.background,
@@ -40,7 +47,7 @@ class _WorkoutDayScreenState extends ConsumerState<WorkoutDayScreen> {
           if (workout == null) {
             return _buildNotFound(context);
           }
-          return _buildContent(context, workout);
+          return _buildContent(context, workout, isCompletedToday);
         },
         loading: () => _buildLoading(),
         error: (error, _) => _buildError(context, error.toString()),
@@ -48,13 +55,13 @@ class _WorkoutDayScreenState extends ConsumerState<WorkoutDayScreen> {
       bottomNavigationBar: workoutAsync.whenOrNull(
         data: (workout) {
           if (workout == null) return null;
-          return _buildBottomBar(context, workout, completeState);
+          return _buildBottomBar(context, workout, completeState, isCompletedToday);
         },
       ),
     );
   }
 
-  Widget _buildContent(BuildContext context, Routine workout) {
+  Widget _buildContent(BuildContext context, Routine workout, bool isCompletedToday) {
     return CustomScrollView(
       slivers: [
         // App bar
@@ -109,7 +116,7 @@ class _WorkoutDayScreenState extends ConsumerState<WorkoutDayScreen> {
             ),
           ),
           actions: [
-            if (_isCompletedToday)
+            if (isCompletedToday)
               Container(
                 margin: const EdgeInsets.only(right: GymGoSpacing.sm),
                 padding: const EdgeInsets.symmetric(
@@ -306,6 +313,7 @@ class _WorkoutDayScreenState extends ConsumerState<WorkoutDayScreen> {
     BuildContext context,
     Routine workout,
     AsyncValue<dynamic> completeState,
+    bool isCompletedToday,
   ) {
     return Container(
       padding: EdgeInsets.fromLTRB(
@@ -322,12 +330,12 @@ class _WorkoutDayScreenState extends ConsumerState<WorkoutDayScreen> {
       ),
       child: SafeArea(
         child: ElevatedButton(
-          onPressed: _isCompletedToday || completeState.isLoading
+          onPressed: isCompletedToday || completeState.isLoading
               ? null
               : () => _showCompleteSheet(context, workout),
           style: ElevatedButton.styleFrom(
             backgroundColor:
-                _isCompletedToday ? GymGoColors.success : GymGoColors.primary,
+                isCompletedToday ? GymGoColors.success : GymGoColors.primary,
             foregroundColor: Colors.white,
             disabledBackgroundColor: GymGoColors.success.withValues(alpha: 0.5),
             disabledForegroundColor: Colors.white,
@@ -349,14 +357,14 @@ class _WorkoutDayScreenState extends ConsumerState<WorkoutDayScreen> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
-                      _isCompletedToday
+                      isCompletedToday
                           ? LucideIcons.checkCircle
                           : LucideIcons.checkCircle2,
                       size: 20,
                     ),
                     const SizedBox(width: GymGoSpacing.sm),
                     Text(
-                      _isCompletedToday
+                      isCompletedToday
                           ? 'Entrenamiento completado'
                           : 'Completar entrenamiento',
                       style: GymGoTypography.bodyMedium.copyWith(
@@ -405,11 +413,11 @@ class _WorkoutDayScreenState extends ConsumerState<WorkoutDayScreen> {
 
           if (success && mounted) {
             setState(() {
-              _isCompletedToday = true;
+              _localCompletedOverride = true;
             });
 
-            // Refresh providers
-            refreshProgramProviders(ref, workout.programId);
+            // Refresh providers including completion status
+            refreshWorkoutCompletionStatus(ref, workout.id, workout.programId);
 
             // Show success
             ScaffoldMessenger.of(context).showSnackBar(
