@@ -202,19 +202,22 @@ class ClassesRepository {
           final avatarUrl = memberData['avatar_url'] as String?;
           debugPrint('getClassesByDate: Found member avatar_url: $avatarUrl');
 
-          final participant = ClassParticipant(
+          final participant = ClassParticipant.fromAvatarUrl(
             memberId: booking['member_id'] as String,
             name: memberData['full_name'] as String? ?? 'Miembro',
             avatarUrl: avatarUrl,
           );
           participants.add(participant);
-          if (participant.avatarUrl != null && participant.avatarUrl!.isNotEmpty) {
-            participantAvatars.add(participant.avatarUrl!);
+          if (participant.hasAvatar) {
+            // Store original URL for backwards compatibility
+            if (avatarUrl != null && avatarUrl.isNotEmpty) {
+              participantAvatars.add(avatarUrl);
+            }
           }
         } else {
           // Member data not found in join, add placeholder
           debugPrint('getClassesByDate: No member data for booking ${booking['id']}');
-          participants.add(ClassParticipant(
+          participants.add(ClassParticipant.fromAvatarUrl(
             memberId: booking['member_id'] as String,
             name: 'Miembro',
             avatarUrl: null,

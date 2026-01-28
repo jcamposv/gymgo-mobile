@@ -10,18 +10,56 @@ class ClassParticipant {
   const ClassParticipant({
     required this.memberId,
     required this.name,
-    this.avatarUrl,
+    this.profileImageUrl,
+    this.avatarPath,
   });
 
   final String memberId;
   final String name;
-  final String? avatarUrl;
+  /// HTTP URL for uploaded profile images
+  final String? profileImageUrl;
+  /// Local asset path for predefined avatars (e.g., 'avatar_2/avatar_01.svg')
+  final String? avatarPath;
+
+  /// Whether participant has any avatar (uploaded or predefined)
+  bool get hasAvatar =>
+      (profileImageUrl != null && profileImageUrl!.isNotEmpty) ||
+      (avatarPath != null && avatarPath!.isNotEmpty);
 
   factory ClassParticipant.fromJson(Map<String, dynamic> json) {
     return ClassParticipant(
       memberId: json['member_id'] as String,
       name: json['full_name'] as String? ?? 'Miembro',
-      avatarUrl: json['avatar_url'] as String?,
+      profileImageUrl: json['avatar_url'] as String?,
+      avatarPath: null,
+    );
+  }
+
+  /// Create from raw avatar_url which can be either HTTP URL or predefined path
+  factory ClassParticipant.fromAvatarUrl({
+    required String memberId,
+    required String name,
+    String? avatarUrl,
+  }) {
+    String? profileImageUrl;
+    String? avatarPath;
+
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      if (avatarUrl.startsWith('/avatar/')) {
+        // Predefined avatar - convert to mobile asset path
+        // /avatar/avatar_01.svg -> avatar_2/avatar_01.svg
+        avatarPath = avatarUrl.replaceFirst('/avatar/', 'avatar_2/');
+      } else if (avatarUrl.startsWith('http')) {
+        // Uploaded image URL
+        profileImageUrl = avatarUrl;
+      }
+    }
+
+    return ClassParticipant(
+      memberId: memberId,
+      name: name,
+      profileImageUrl: profileImageUrl,
+      avatarPath: avatarPath,
     );
   }
 }

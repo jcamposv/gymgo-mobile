@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -314,8 +313,6 @@ class _ParticipantSlot extends StatelessWidget {
       return _buildEmptySlot();
     }
 
-    final hasAvatar = participant?.avatarUrl != null && participant!.avatarUrl!.isNotEmpty;
-
     return GestureDetector(
       onTap: participant != null ? () => _showParticipantDialog(context) : null,
       child: Container(
@@ -329,25 +326,23 @@ class _ParticipantSlot extends StatelessWidget {
             width: 1,
           ),
         ),
-        child: hasAvatar
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(GymGoSpacing.radiusSm - 1),
-                child: CachedNetworkImage(
-                  imageUrl: participant!.avatarUrl!,
-                  fit: BoxFit.cover,
-                  placeholder: (_, __) => _buildEnrolledPlaceholder(),
-                  errorWidget: (_, __, ___) => _buildEnrolledPlaceholder(),
-                ),
-              )
-            : _buildEnrolledPlaceholder(),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(GymGoSpacing.radiusSm - 1),
+          child: participant?.hasAvatar == true
+              ? MemberProfilePhotoDisplay(
+                  memberName: participant!.name,
+                  profileImageUrl: participant!.profileImageUrl,
+                  avatarPath: participant!.avatarPath,
+                  customSize: 42,
+                )
+              : _buildEnrolledPlaceholder(),
+        ),
       ),
     );
   }
 
   void _showParticipantDialog(BuildContext context) {
     HapticFeedback.lightImpact();
-
-    final hasAvatar = participant?.avatarUrl != null && participant!.avatarUrl!.isNotEmpty;
 
     showDialog(
       context: context,
@@ -370,12 +365,12 @@ class _ParticipantSlot extends StatelessWidget {
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd - 2),
-                child: hasAvatar
-                    ? CachedNetworkImage(
-                        imageUrl: participant!.avatarUrl!,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => _buildLargePlaceholder(),
-                        errorWidget: (_, __, ___) => _buildLargePlaceholder(),
+                child: participant?.hasAvatar == true
+                    ? MemberProfilePhotoDisplay(
+                        memberName: participant!.name,
+                        profileImageUrl: participant!.profileImageUrl,
+                        avatarPath: participant!.avatarPath,
+                        customSize: 116,
                       )
                     : _buildLargePlaceholder(),
               ),
