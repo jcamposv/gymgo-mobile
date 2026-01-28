@@ -139,8 +139,9 @@ class ClassesRepository {
     final startOfDay = DateTime(date.year, date.month, date.day);
     final endOfDay = startOfDay.add(const Duration(days: 1));
 
-    // Get classes for the date with bookings
+    // Get classes for the date with bookings and member info (for avatars)
     // Filter by organization_id to match web contract
+    // Use explicit FK reference: members!bookings_member_id_fkey
     final classesResponse = await _supabase
         .from('classes')
         .select('''
@@ -148,7 +149,12 @@ class ClassesRepository {
           bookings(
             id,
             member_id,
-            status
+            status,
+            members!bookings_member_id_fkey(
+              id,
+              full_name,
+              avatar_url
+            )
           )
         ''')
         .eq('organization_id', orgId)
@@ -182,6 +188,40 @@ class ClassesRepository {
 
       debugPrint('getClassesByDate: isUserBooked = $isUserBooked');
 
+      // Extract participant info from bookings
+      final participants = <ClassParticipant>[];
+      final participantAvatars = <String>[];
+      for (final booking in confirmedBookings) {
+        // Supabase returns nested relations - try both singular and plural names
+        final memberData = booking['members'] as Map<String, dynamic>? ??
+            booking['member'] as Map<String, dynamic>?;
+
+        debugPrint('getClassesByDate: Booking member data: $memberData');
+
+        if (memberData != null) {
+          final avatarUrl = memberData['avatar_url'] as String?;
+          debugPrint('getClassesByDate: Found member avatar_url: $avatarUrl');
+
+          final participant = ClassParticipant(
+            memberId: booking['member_id'] as String,
+            name: memberData['full_name'] as String? ?? 'Miembro',
+            avatarUrl: avatarUrl,
+          );
+          participants.add(participant);
+          if (participant.avatarUrl != null && participant.avatarUrl!.isNotEmpty) {
+            participantAvatars.add(participant.avatarUrl!);
+          }
+        } else {
+          // Member data not found in join, add placeholder
+          debugPrint('getClassesByDate: No member data for booking ${booking['id']}');
+          participants.add(ClassParticipant(
+            memberId: booking['member_id'] as String,
+            name: 'Miembro',
+            avatarUrl: null,
+          ));
+        }
+      }
+
       // Parse timestamps
       final startTime = DateTime.parse(classJson['start_time'] as String);
       final endTime = DateTime.parse(classJson['end_time'] as String);
@@ -197,7 +237,8 @@ class ClassesRepository {
         endTime: _formatTime(endTime),
         maxCapacity: classJson['max_capacity'] as int? ?? 20,
         currentParticipants: currentParticipants,
-        participantAvatars: const [], // Simplified - avatars removed for now
+        participantAvatars: participantAvatars,
+        participants: participants,
         isUserBooked: isUserBooked,
         description: classJson['description'] as String?,
       );
@@ -244,8 +285,8 @@ class ClassesRepository {
       throw Exception('La clase está llena');
     }
 
-    // Check if user already has a booking
-    final existingBooking = await _supabase
+    // Check if user already has an active booking
+    final existingActiveBooking = await _supabase
         .from('bookings')
         .select()
         .eq('class_id', classId)
@@ -253,9 +294,18 @@ class ClassesRepository {
         .neq('status', 'cancelled')
         .maybeSingle();
 
-    if (existingBooking != null) {
+    if (existingActiveBooking != null) {
       throw Exception('Ya tienes una reserva para esta clase');
     }
+
+    // Check if there's a cancelled booking we can reactivate
+    final existingCancelledBooking = await _supabase
+        .from('bookings')
+        .select()
+        .eq('class_id', classId)
+        .eq('member_id', memberId)
+        .eq('status', 'cancelled')
+        .maybeSingle();
 
     // --- DAILY LIMIT VALIDATION (WEB Contract) ---
     final limitCheck = await _bookingLimitService.checkDailyLimit(
@@ -276,13 +326,24 @@ class ClassesRepository {
       );
     }
 
-    // Create booking
-    await _supabase.from('bookings').insert({
-      'organization_id': organizationId,
-      'class_id': classId,
-      'member_id': memberId,
-      'status': 'confirmed',
-    });
+    if (existingCancelledBooking != null) {
+      // Reactivate the cancelled booking
+      await _supabase
+          .from('bookings')
+          .update({
+            'status': 'confirmed',
+            'cancelled_at': null,
+          })
+          .eq('id', existingCancelledBooking['id'] as String);
+    } else {
+      // Create new booking
+      await _supabase.from('bookings').insert({
+        'organization_id': organizationId,
+        'class_id': classId,
+        'member_id': memberId,
+        'status': 'confirmed',
+      });
+    }
   }
 
   /// Reserve a class on behalf of a member (Staff/Admin only).
@@ -313,8 +374,8 @@ class ClassesRepository {
       throw Exception('La clase está llena');
     }
 
-    // Check if member already has a booking
-    final existingBooking = await _supabase
+    // Check if member already has an active booking
+    final existingActiveBooking = await _supabase
         .from('bookings')
         .select()
         .eq('class_id', classId)
@@ -322,9 +383,18 @@ class ClassesRepository {
         .neq('status', 'cancelled')
         .maybeSingle();
 
-    if (existingBooking != null) {
+    if (existingActiveBooking != null) {
       throw Exception('El miembro ya tiene una reserva para esta clase');
     }
+
+    // Check if there's a cancelled booking we can reactivate
+    final existingCancelledBooking = await _supabase
+        .from('bookings')
+        .select()
+        .eq('class_id', classId)
+        .eq('member_id', memberId)
+        .eq('status', 'cancelled')
+        .maybeSingle();
 
     // --- DAILY LIMIT VALIDATION (WEB Contract) ---
     // Only check if not bypassing (matching WEB behavior)
@@ -349,13 +419,24 @@ class ClassesRepository {
       }
     }
 
-    // Create booking
-    await _supabase.from('bookings').insert({
-      'organization_id': organizationId,
-      'class_id': classId,
-      'member_id': memberId,
-      'status': 'confirmed',
-    });
+    if (existingCancelledBooking != null) {
+      // Reactivate the cancelled booking
+      await _supabase
+          .from('bookings')
+          .update({
+            'status': 'confirmed',
+            'cancelled_at': null,
+          })
+          .eq('id', existingCancelledBooking['id'] as String);
+    } else {
+      // Create new booking
+      await _supabase.from('bookings').insert({
+        'organization_id': organizationId,
+        'class_id': classId,
+        'member_id': memberId,
+        'status': 'confirmed',
+      });
+    }
   }
 
   /// Cancel a reservation

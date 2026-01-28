@@ -5,6 +5,27 @@ enum ClassStatus {
   finished,
 }
 
+/// Represents a participant in a class
+class ClassParticipant {
+  const ClassParticipant({
+    required this.memberId,
+    required this.name,
+    this.avatarUrl,
+  });
+
+  final String memberId;
+  final String name;
+  final String? avatarUrl;
+
+  factory ClassParticipant.fromJson(Map<String, dynamic> json) {
+    return ClassParticipant(
+      memberId: json['member_id'] as String,
+      name: json['full_name'] as String? ?? 'Miembro',
+      avatarUrl: json['avatar_url'] as String?,
+    );
+  }
+}
+
 /// Represents a gym class/session
 class GymClass {
   const GymClass({
@@ -19,6 +40,7 @@ class GymClass {
     required this.maxCapacity,
     required this.currentParticipants,
     this.participantAvatars = const [],
+    this.participants = const [],
     this.isUserBooked = false,
     this.description,
     this.imageUrl,
@@ -35,6 +57,7 @@ class GymClass {
   final int maxCapacity;
   final int currentParticipants;
   final List<String> participantAvatars;
+  final List<ClassParticipant> participants;
   final bool isUserBooked;
   final String? description;
   final String? imageUrl;
@@ -100,6 +123,7 @@ class GymClass {
     int? maxCapacity,
     int? currentParticipants,
     List<String>? participantAvatars,
+    List<ClassParticipant>? participants,
     bool? isUserBooked,
     String? description,
     String? imageUrl,
@@ -116,6 +140,7 @@ class GymClass {
       maxCapacity: maxCapacity ?? this.maxCapacity,
       currentParticipants: currentParticipants ?? this.currentParticipants,
       participantAvatars: participantAvatars ?? this.participantAvatars,
+      participants: participants ?? this.participants,
       isUserBooked: isUserBooked ?? this.isUserBooked,
       description: description ?? this.description,
       imageUrl: imageUrl ?? this.imageUrl,
@@ -123,7 +148,12 @@ class GymClass {
   }
 
   /// Create from JSON (Supabase)
-  factory GymClass.fromJson(Map<String, dynamic> json, {bool isUserBooked = false, List<String>? participantAvatars}) {
+  factory GymClass.fromJson(
+    Map<String, dynamic> json, {
+    bool isUserBooked = false,
+    List<String>? participantAvatars,
+    List<ClassParticipant>? participants,
+  }) {
     return GymClass(
       id: json['id'] as String,
       name: json['name'] as String,
@@ -136,6 +166,7 @@ class GymClass {
       maxCapacity: json['max_capacity'] as int? ?? 20,
       currentParticipants: json['current_participants'] as int? ?? 0,
       participantAvatars: participantAvatars ?? const [],
+      participants: participants ?? const [],
       isUserBooked: isUserBooked,
       description: json['description'] as String?,
       imageUrl: json['image_url'] as String?,

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -158,7 +159,7 @@ class ClassCard extends StatelessWidget {
   Widget _buildAvatarsGrid() {
     final capacity = gymClass.maxCapacity;
     final enrolled = gymClass.currentParticipants;
-    final avatars = gymClass.participantAvatars;
+    final participants = gymClass.participants;
 
     // Show max 18 slots visible
     final maxVisible = capacity > 18 ? 18 : capacity;
@@ -168,58 +169,14 @@ class ClassCard extends StatelessWidget {
       runSpacing: 6,
       children: List.generate(maxVisible, (index) {
         final isEnrolled = index < enrolled;
-        final hasAvatar = index < avatars.length && avatars[index].isNotEmpty;
+        final hasParticipant = index < participants.length;
+        final participant = hasParticipant ? participants[index] : null;
 
-        return Container(
-          width: 44,
-          height: 44,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(GymGoSpacing.radiusSm),
-            color: isEnrolled ? GymGoColors.surface : GymGoColors.cardBackground,
-            border: Border.all(
-              color: isEnrolled
-                  ? GymGoColors.cardBorder
-                  : GymGoColors.cardBorder.withValues(alpha: 0.5),
-              width: 1,
-            ),
-          ),
-          child: isEnrolled
-              ? (hasAvatar
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(GymGoSpacing.radiusSm - 1),
-                      child: Image.network(
-                        avatars[index],
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _buildEnrolledPlaceholder(),
-                      ),
-                    )
-                  : _buildEnrolledPlaceholder())
-              : _buildEmptySlot(),
+        return _ParticipantSlot(
+          isEnrolled: isEnrolled,
+          participant: participant,
         );
       }),
-    );
-  }
-
-  Widget _buildEnrolledPlaceholder() {
-    return const Center(
-      child: Icon(
-        LucideIcons.user,
-        size: 20,
-        color: GymGoColors.textTertiary,
-      ),
-    );
-  }
-
-  Widget _buildEmptySlot() {
-    return Center(
-      child: Container(
-        width: 8,
-        height: 8,
-        decoration: BoxDecoration(
-          color: GymGoColors.cardBorder.withValues(alpha: 0.3),
-          borderRadius: BorderRadius.circular(2),
-        ),
-      ),
     );
   }
 
@@ -337,6 +294,162 @@ class ClassCard extends StatelessWidget {
             )
           : const Icon(LucideIcons.calendarPlus, size: 14),
       label: Text(isLoading ? 'Reservando...' : 'Reservar'),
+    );
+  }
+}
+
+/// Individual participant slot with avatar and tap-to-expand
+class _ParticipantSlot extends StatelessWidget {
+  const _ParticipantSlot({
+    required this.isEnrolled,
+    this.participant,
+  });
+
+  final bool isEnrolled;
+  final ClassParticipant? participant;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isEnrolled) {
+      return _buildEmptySlot();
+    }
+
+    final hasAvatar = participant?.avatarUrl != null && participant!.avatarUrl!.isNotEmpty;
+
+    return GestureDetector(
+      onTap: participant != null ? () => _showParticipantDialog(context) : null,
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(GymGoSpacing.radiusSm),
+          color: GymGoColors.surface,
+          border: Border.all(
+            color: GymGoColors.cardBorder,
+            width: 1,
+          ),
+        ),
+        child: hasAvatar
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(GymGoSpacing.radiusSm - 1),
+                child: CachedNetworkImage(
+                  imageUrl: participant!.avatarUrl!,
+                  fit: BoxFit.cover,
+                  placeholder: (_, __) => _buildEnrolledPlaceholder(),
+                  errorWidget: (_, __, ___) => _buildEnrolledPlaceholder(),
+                ),
+              )
+            : _buildEnrolledPlaceholder(),
+      ),
+    );
+  }
+
+  void _showParticipantDialog(BuildContext context) {
+    HapticFeedback.lightImpact();
+
+    final hasAvatar = participant?.avatarUrl != null && participant!.avatarUrl!.isNotEmpty;
+
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Avatar
+            Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
+                color: GymGoColors.surface,
+                border: Border.all(
+                  color: GymGoColors.primary,
+                  width: 2,
+                ),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd - 2),
+                child: hasAvatar
+                    ? CachedNetworkImage(
+                        imageUrl: participant!.avatarUrl!,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => _buildLargePlaceholder(),
+                        errorWidget: (_, __, ___) => _buildLargePlaceholder(),
+                      )
+                    : _buildLargePlaceholder(),
+              ),
+            ),
+            const SizedBox(height: GymGoSpacing.md),
+            // Name
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: GymGoSpacing.md,
+                vertical: GymGoSpacing.sm,
+              ),
+              decoration: BoxDecoration(
+                color: GymGoColors.cardBackground,
+                borderRadius: BorderRadius.circular(GymGoSpacing.radiusFull),
+              ),
+              child: Text(
+                participant?.name ?? 'Miembro',
+                style: GymGoTypography.labelMedium.copyWith(
+                  color: GymGoColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEnrolledPlaceholder() {
+    return const Center(
+      child: Icon(
+        LucideIcons.user,
+        size: 20,
+        color: GymGoColors.textTertiary,
+      ),
+    );
+  }
+
+  Widget _buildLargePlaceholder() {
+    return Container(
+      color: GymGoColors.surfaceLight,
+      child: const Center(
+        child: Icon(
+          LucideIcons.user,
+          size: 48,
+          color: GymGoColors.textTertiary,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptySlot() {
+    return Container(
+      width: 44,
+      height: 44,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(GymGoSpacing.radiusSm),
+        color: GymGoColors.cardBackground,
+        border: Border.all(
+          color: GymGoColors.cardBorder.withValues(alpha: 0.5),
+          width: 1,
+        ),
+      ),
+      child: Center(
+        child: Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: GymGoColors.cardBorder.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(2),
+          ),
+        ),
+      ),
     );
   }
 }

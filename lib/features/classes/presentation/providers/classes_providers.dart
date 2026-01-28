@@ -85,14 +85,16 @@ class ClassActionsNotifier extends StateNotifier<AsyncValue<void>> {
 
     try {
       await _repository.reserveClass(classId);
-      // Refresh classes list
-      _ref.invalidate(classesProvider);
+      // Refresh classes list and wait for it to complete
+      // ignore: unused_result
+      await _ref.refresh(classesProvider.future);
     } catch (e) {
       state = AsyncError(e, StackTrace.current);
       rethrow;
     } finally {
+      // Create a new set to ensure state update triggers properly
       _ref.read(reservationLoadingProvider.notifier).update(
-        (state) => state..remove(classId),
+        (state) => Set<String>.from(state)..remove(classId),
       );
     }
   }
@@ -105,14 +107,16 @@ class ClassActionsNotifier extends StateNotifier<AsyncValue<void>> {
 
     try {
       await _repository.cancelReservation(classId);
-      // Refresh classes list
-      _ref.invalidate(classesProvider);
+      // Refresh classes list and wait for it to complete
+      // ignore: unused_result
+      await _ref.refresh(classesProvider.future);
     } catch (e) {
       state = AsyncError(e, StackTrace.current);
       rethrow;
     } finally {
+      // Create a new set to ensure state update triggers properly
       _ref.read(reservationLoadingProvider.notifier).update(
-        (state) => state..remove(classId),
+        (state) => Set<String>.from(state)..remove(classId),
       );
     }
   }
