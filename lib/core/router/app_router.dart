@@ -27,6 +27,7 @@ import '../../features/admin_tools/presentation/screens/admin_tools_screen.dart'
 import '../../features/admin_tools/presentation/screens/create_class_screen.dart';
 import '../../features/admin_tools/presentation/screens/templates_screen.dart';
 import '../../features/admin_tools/presentation/screens/members_list_screen.dart';
+import '../../features/admin_tools/presentation/screens/create_member_screen.dart';
 import '../../features/admin_tools/presentation/screens/booking_limits_screen.dart';
 import '../../features/admin_tools/presentation/screens/check_in_screen.dart';
 import '../../features/finances/presentation/screens/finances_screen.dart';
@@ -293,6 +294,15 @@ final routerProvider = Provider<GoRouter>((ref) {
           context,
           state,
           const MembersListScreen(),
+        ),
+      ),
+      GoRoute(
+        path: Routes.adminCreateMember,
+        name: Routes.adminCreateMemberName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const CreateMemberScreen(),
         ),
       ),
       GoRoute(

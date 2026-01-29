@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import '../../../../core/router/routes.dart';
 import '../../../../core/theme/gymgo_colors.dart';
 import '../../../../core/theme/gymgo_spacing.dart';
 import '../../../../core/theme/gymgo_typography.dart';
@@ -61,6 +62,13 @@ class _MembersListScreenState extends ConsumerState<MembersListScreen> {
               child: const SedeHeaderCompact(),
             ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push(Routes.adminCreateMember),
+        backgroundColor: GymGoColors.primary,
+        foregroundColor: Colors.white,
+        icon: const Icon(LucideIcons.userPlus, size: 20),
+        label: const Text('Nuevo'),
       ),
       body: SafeArea(
         child: Column(
@@ -446,6 +454,17 @@ class _MembersListScreenState extends ConsumerState<MembersListScreen> {
                   foregroundColor: GymGoColors.background,
                 ),
                 child: const Text('Limpiar filtros'),
+              ),
+            ] else ...[
+              const SizedBox(height: GymGoSpacing.lg),
+              ElevatedButton.icon(
+                onPressed: () => context.push(Routes.adminCreateMember),
+                icon: const Icon(LucideIcons.userPlus, size: 18),
+                label: const Text('Agregar miembro'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: GymGoColors.primary,
+                  foregroundColor: GymGoColors.background,
+                ),
               ),
             ],
           ],

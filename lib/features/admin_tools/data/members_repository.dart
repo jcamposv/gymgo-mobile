@@ -13,6 +13,78 @@ class MembersResult {
   final int totalCount;
 }
 
+/// Result of member limit check
+class MemberLimitResult {
+  const MemberLimitResult({
+    required this.allowed,
+    required this.current,
+    required this.limit,
+    this.message,
+  });
+
+  final bool allowed;
+  final int current;
+  final int limit;
+  final String? message;
+}
+
+/// Data for creating a new member
+class CreateMemberData {
+  const CreateMemberData({
+    required this.email,
+    required this.fullName,
+    required this.locationId,
+    this.phone,
+    this.currentPlanId,
+    this.membershipStartDate,
+    this.membershipEndDate,
+    this.experienceLevel = ExperienceLevel.beginner,
+    this.status = MemberStatus.active,
+  });
+
+  final String email;
+  final String fullName;
+  final String locationId;
+  final String? phone;
+  final String? currentPlanId;
+  final DateTime? membershipStartDate;
+  final DateTime? membershipEndDate;
+  final ExperienceLevel experienceLevel;
+  final MemberStatus status;
+
+  Map<String, dynamic> toJson(String organizationId) {
+    return {
+      'organization_id': organizationId,
+      'location_id': locationId,
+      'email': email.trim().toLowerCase(),
+      'full_name': fullName.trim(),
+      'phone': phone?.trim().isNotEmpty == true ? phone!.trim() : null,
+      'current_plan_id': currentPlanId,
+      'membership_start_date': membershipStartDate?.toIso8601String().split('T')[0],
+      'membership_end_date': membershipEndDate?.toIso8601String().split('T')[0],
+      'experience_level': experienceLevel.name,
+      'status': status.name,
+    };
+  }
+}
+
+/// Exception for member creation errors
+class CreateMemberException implements Exception {
+  const CreateMemberException(this.message, {this.code});
+
+  final String message;
+  final String? code;
+
+  /// Check if this is a duplicate email error
+  bool get isDuplicateEmail => code == '23505';
+
+  /// Check if this is a plan limit exceeded error
+  bool get isPlanLimitExceeded => code == 'PLAN_LIMIT_EXCEEDED';
+
+  @override
+  String toString() => message;
+}
+
 /// Repository for member operations with Supabase
 /// Uses the members table with organization_id filter (RLS also enforces this)
 class MembersRepository {
@@ -209,5 +281,138 @@ class MembersRepository {
 
     final response = await dbQuery;
     return (response as List).length;
+  }
+
+  /// Check if organization can add more members (plan limit check)
+  /// Matches web behavior: lib/plan-limits.ts → checkMemberLimit
+  Future<MemberLimitResult> checkMemberLimit() async {
+    final organizationId = await _getOrganizationId();
+    if (organizationId == null) {
+      return const MemberLimitResult(
+        allowed: false,
+        current: 0,
+        limit: 0,
+        message: 'No hay sesión activa',
+      );
+    }
+
+    try {
+      // Get organization limits
+      final orgResponse = await _supabase
+          .from('organizations')
+          .select('max_members')
+          .eq('id', organizationId)
+          .maybeSingle();
+
+      if (orgResponse == null) {
+        return const MemberLimitResult(
+          allowed: false,
+          current: 0,
+          limit: 0,
+          message: 'Organización no encontrada',
+        );
+      }
+
+      final maxMembers = orgResponse['max_members'] as int? ?? -1;
+
+      // Unlimited check
+      if (maxMembers == -1 || maxMembers >= 999999) {
+        return const MemberLimitResult(allowed: true, current: 0, limit: -1);
+      }
+
+      // Count current members
+      final countResponse = await _supabase
+          .from('members')
+          .select('id')
+          .eq('organization_id', organizationId);
+
+      final currentCount = (countResponse as List).length;
+
+      if (currentCount >= maxMembers) {
+        return MemberLimitResult(
+          allowed: false,
+          current: currentCount,
+          limit: maxMembers,
+          message: 'Has alcanzado el límite de $maxMembers miembros de tu plan. Actualiza tu plan para agregar más.',
+        );
+      }
+
+      return MemberLimitResult(
+        allowed: true,
+        current: currentCount,
+        limit: maxMembers,
+      );
+    } catch (e) {
+      debugPrint('MembersRepository.checkMemberLimit: Error $e');
+      return const MemberLimitResult(
+        allowed: false,
+        current: 0,
+        limit: 0,
+        message: 'Error al verificar límites',
+      );
+    }
+  }
+
+  /// Create a new member
+  /// Matches web behavior: actions/member.actions.ts → createMemberData
+  ///
+  /// Throws [CreateMemberException] on error:
+  /// - isDuplicateEmail: email already exists in organization
+  /// - isPlanLimitExceeded: member limit reached
+  Future<Member> createMember(CreateMemberData data) async {
+    final organizationId = await _getOrganizationId();
+    if (organizationId == null) {
+      throw const CreateMemberException(
+        'No hay sesión activa o no perteneces a una organización',
+      );
+    }
+
+    debugPrint('MembersRepository.createMember: Creating member for org $organizationId');
+
+    // Check member limit first
+    final limitCheck = await checkMemberLimit();
+    if (!limitCheck.allowed) {
+      throw CreateMemberException(
+        limitCheck.message ?? 'Límite de miembros alcanzado',
+        code: 'PLAN_LIMIT_EXCEEDED',
+      );
+    }
+
+    try {
+      final insertData = data.toJson(organizationId);
+      debugPrint('MembersRepository.createMember: Insert data: $insertData');
+
+      final response = await _supabase
+          .from('members')
+          .insert(insertData)
+          .select()
+          .single();
+
+      debugPrint('MembersRepository.createMember: Member created successfully');
+      return Member.fromJson(response);
+    } on PostgrestException catch (e) {
+      debugPrint('MembersRepository.createMember: PostgrestException ${e.code}: ${e.message}');
+
+      // Handle duplicate email error
+      if (e.code == '23505') {
+        throw const CreateMemberException(
+          'Ya existe un miembro con este email',
+          code: '23505',
+        );
+      }
+
+      // Handle RLS violation
+      if (e.code == '42501' || e.message.contains('policy')) {
+        throw const CreateMemberException(
+          'No tienes permisos para crear miembros',
+          code: '42501',
+        );
+      }
+
+      throw CreateMemberException(e.message, code: e.code);
+    } catch (e) {
+      debugPrint('MembersRepository.createMember: Error $e');
+      throw CreateMemberException('Error al crear miembro: $e');
+    }
   }
 }
