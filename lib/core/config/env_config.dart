@@ -39,11 +39,11 @@ class EnvConfig {
 
   static String get webApiUrl => isDev
       ? 'http://192.168.68.109:3000/api/v1'
-      : 'https://api.gymgo.com/api/v1';
+      : 'https://app.gymgo.io/api/v1';
 
   static String get webApiKey => isDev
       ? 'dev_test_key_32_chars_minimum!!'
-      : const String.fromEnvironment('WEB_API_KEY', defaultValue: '');
+      : '3f617926a6883cbf6c14f9d4cf4fc6c1ae4a9ebb48eea8cf8a96dea64fd0e9b3';
 
   // ===========================================================================
   // DEEP LINK CONFIGURATION

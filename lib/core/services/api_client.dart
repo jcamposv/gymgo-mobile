@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../config/env_config.dart';
 import '../config/supabase_config.dart';
@@ -50,7 +51,10 @@ class ApiClient {
 
     // Add Bearer token if user is authenticated
     final session = SupabaseConfig.currentSession;
+    debugPrint('ApiClient: session is ${session != null ? "PRESENT" : "NULL"}');
+    debugPrint('ApiClient: API Key = ${_apiKey.substring(0, 8)}...');
     if (session != null) {
+      debugPrint('ApiClient: Token = ${session.accessToken.substring(0, 20)}...');
       headers['Authorization'] = 'Bearer ${session.accessToken}';
     }
 
@@ -75,6 +79,7 @@ class ApiClient {
 
   /// Handle API response and map errors
   Map<String, dynamic> _handleResponse(http.Response response) {
+    debugPrint('ApiClient: Status ${response.statusCode} - Body: ${response.body.substring(0, response.body.length.clamp(0, 200))}');
     final body = jsonDecode(response.body) as Map<String, dynamic>;
 
     if (response.statusCode >= 200 && response.statusCode < 300) {

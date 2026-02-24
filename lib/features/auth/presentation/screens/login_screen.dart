@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../../core/router/routes.dart';
@@ -135,10 +136,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _buildHeader() {
     return Column(
       children: [
-        // Dynamic gym logo - shows gym's logo if configured, falls back to default
-        const GymLogo(
-          height: 48,
-          variant: GymLogoVariant.full,
+        // GymGo logo
+        SvgPicture.asset(
+          'assets/images/gymgo-logo.svg',
+          width: 200,
+          fit: BoxFit.contain,
         ),
         const SizedBox(height: GymGoSpacing.xl),
         const GymGoHeader(
