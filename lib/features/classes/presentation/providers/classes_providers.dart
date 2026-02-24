@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../shared/providers/role_providers.dart';
@@ -139,6 +142,41 @@ final nextUserClassProvider = FutureProvider<GymClass?>((ref) async {
     print('Stack: $stack');
     rethrow;
   }
+});
+
+/// Realtime subscription for bookings changes
+final bookingsRealtimeProvider = Provider<void>((ref) {
+  final orgIdAsync = ref.watch(currentOrganizationIdAsyncProvider);
+  final orgId = orgIdAsync.valueOrNull;
+  if (orgId == null) return;
+
+  Timer? debounce;
+  final channel = Supabase.instance.client
+      .channel('bookings_realtime')
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'bookings',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'organization_id',
+          value: orgId,
+        ),
+        callback: (payload) {
+          debounce?.cancel();
+          debounce = Timer(const Duration(milliseconds: 500), () {
+            debugPrint('[Realtime] Booking change detected, refreshing classes');
+            ref.invalidate(classesProvider);
+          });
+        },
+      )
+      .subscribe();
+
+  ref.onDispose(() {
+    debounce?.cancel();
+    Supabase.instance.client.removeChannel(channel);
+    debugPrint('[Realtime] Bookings channel removed');
+  });
 });
 
 /// Helper to navigate weeks

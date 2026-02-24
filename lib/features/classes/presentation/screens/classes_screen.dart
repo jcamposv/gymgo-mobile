@@ -42,6 +42,9 @@ class _ClassesScreenState extends ConsumerState<ClassesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Activate realtime subscription for booking changes
+    ref.watch(bookingsRealtimeProvider);
+
     final selectedDate = ref.watch(selectedDateProvider);
     final weekDates = ref.watch(weekDatesProvider);
     final filteredClasses = ref.watch(filteredClassesProvider);
