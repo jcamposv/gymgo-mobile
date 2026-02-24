@@ -87,7 +87,7 @@ class PushTokenRepository {
       final memberResponse = await _client
           .from('members')
           .select('organization_id')
-          .eq('user_id', userId)
+          .eq('profile_id', userId)
           .maybeSingle();
 
       final organizationId = memberResponse?['organization_id'] as String?;
