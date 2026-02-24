@@ -6,6 +6,7 @@ import '../../features/auth/presentation/providers/auth_providers.dart';
 import '../../features/auth/presentation/screens/forgot_password_screen.dart';
 import '../../features/auth/presentation/screens/login_screen.dart';
 import '../../features/auth/presentation/screens/reset_password_screen.dart';
+import '../../features/onboarding/presentation/screens/onboarding_screen.dart';
 import '../../splash/splash_screen.dart';
 import '../../features/dashboard/presentation/screens/home_dashboard_screen.dart';
 import '../../features/dashboard/presentation/screens/main_shell.dart';
@@ -91,6 +92,17 @@ final routerProvider = Provider<GoRouter>((ref) {
           context,
           state,
           const SplashScreen(),
+        ),
+      ),
+
+      // Onboarding route
+      GoRoute(
+        path: Routes.onboarding,
+        name: Routes.onboardingName,
+        pageBuilder: (context, state) => _buildPageWithTransition(
+          context,
+          state,
+          const OnboardingScreen(),
         ),
       ),
 
@@ -457,7 +469,8 @@ final routerProvider = Provider<GoRouter>((ref) {
 
 /// Check if route is an auth route
 bool _isAuthRoute(String path) {
-  return path == Routes.login ||
+  return path == Routes.onboarding ||
+      path == Routes.login ||
       path == Routes.forgotPassword ||
       path == Routes.resetPassword;
 }

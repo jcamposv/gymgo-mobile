@@ -111,6 +111,38 @@ final createTemplateProvider =
   return CreateTemplateNotifier(repository, ref);
 });
 
+/// Batch create templates notifier
+class BatchCreateTemplatesNotifier extends StateNotifier<AsyncValue<int?>> {
+  BatchCreateTemplatesNotifier(this._repository, this._ref)
+      : super(const AsyncValue.data(null));
+
+  final TemplatesRepository _repository;
+  final Ref _ref;
+
+  Future<int?> createBatch(List<CreateTemplateDto> dtos) async {
+    state = const AsyncValue.loading();
+    try {
+      final templates = await _repository.createTemplatesBatch(dtos);
+      state = AsyncValue.data(templates.length);
+      _ref.invalidate(templatesProvider);
+      return templates.length;
+    } catch (e, st) {
+      state = AsyncValue.error(e, st);
+      return null;
+    }
+  }
+
+  void reset() {
+    state = const AsyncValue.data(null);
+  }
+}
+
+final batchCreateTemplatesProvider =
+    StateNotifierProvider<BatchCreateTemplatesNotifier, AsyncValue<int?>>((ref) {
+  final repository = ref.watch(templatesRepositoryProvider);
+  return BatchCreateTemplatesNotifier(repository, ref);
+});
+
 /// Delete template notifier
 class DeleteTemplateNotifier extends StateNotifier<AsyncValue<void>> {
   DeleteTemplateNotifier(this._repository, this._ref)

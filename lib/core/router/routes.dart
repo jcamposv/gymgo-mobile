@@ -5,6 +5,9 @@ class Routes {
   // Splash route
   static const String splash = '/';
 
+  // Onboarding route
+  static const String onboarding = '/onboarding';
+
   // Auth routes
   static const String login = '/login';
   static const String forgotPassword = '/forgot-password';
@@ -45,6 +48,7 @@ class Routes {
 
   // Route names for navigation
   static const String splashName = 'splash';
+  static const String onboardingName = 'onboarding';
   static const String loginName = 'login';
   static const String forgotPasswordName = 'forgot-password';
   static const String resetPasswordName = 'reset-password';

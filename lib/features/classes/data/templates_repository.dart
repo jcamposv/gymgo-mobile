@@ -115,6 +115,25 @@ class TemplatesRepository {
     return ClassTemplate.fromJson(response);
   }
 
+  /// Create multiple templates in a single batch insert
+  Future<List<ClassTemplate>> createTemplatesBatch(
+    List<CreateTemplateDto> dtos,
+  ) async {
+    final orgId = await _getOrganizationId();
+    if (orgId == null) throw Exception('Usuario no autenticado');
+
+    final rows = dtos.map((dto) => dto.toJson(orgId)).toList();
+
+    final response = await _supabase
+        .from('class_templates')
+        .insert(rows)
+        .select();
+
+    return (response as List<dynamic>)
+        .map((json) => ClassTemplate.fromJson(json as Map<String, dynamic>))
+        .toList();
+  }
+
   /// Delete a template (HARD DELETE - matches web implementation)
   Future<void> deleteTemplate(String templateId) async {
     final orgId = await _getOrganizationId();

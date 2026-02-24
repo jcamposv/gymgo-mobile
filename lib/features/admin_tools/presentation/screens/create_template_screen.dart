@@ -10,7 +10,27 @@ import '../../../classes/domain/class_template.dart';
 import '../../../classes/presentation/providers/templates_providers.dart';
 import '../../../classes/presentation/widgets/instructor_picker_sheet.dart';
 
-/// Screen for creating a new class template
+/// Helper class for time block state
+class _TimeBlock {
+  _TimeBlock({required this.start, required this.end});
+
+  TimeOfDay start;
+  TimeOfDay end;
+
+  int get startMinutes => start.hour * 60 + start.minute;
+  int get endMinutes => end.hour * 60 + end.minute;
+
+  String get startFormatted =>
+      '${start.hour.toString().padLeft(2, '0')}:${start.minute.toString().padLeft(2, '0')}';
+  String get endFormatted =>
+      '${end.hour.toString().padLeft(2, '0')}:${end.minute.toString().padLeft(2, '0')}';
+
+  bool overlaps(_TimeBlock other) {
+    return startMinutes < other.endMinutes && endMinutes > other.startMinutes;
+  }
+}
+
+/// Screen for creating class templates in batch
 class CreateTemplateScreen extends ConsumerStatefulWidget {
   const CreateTemplateScreen({super.key});
 
@@ -22,30 +42,58 @@ class CreateTemplateScreen extends ConsumerStatefulWidget {
 class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _descriptionController = TextEditingController();
   final _capacityController = TextEditingController(text: '20');
   final _locationController = TextEditingController();
 
   bool _isLoading = false;
   bool _hasChanges = false;
   Instructor? _selectedInstructor;
-  int _selectedDay = 1; // Monday by default
   String? _selectedClassType;
-  TimeOfDay _startTime = const TimeOfDay(hour: 9, minute: 0);
-  TimeOfDay _endTime = const TimeOfDay(hour: 10, minute: 0);
+
+  // Batch state
+  List<_TimeBlock> _timeBlocks = [
+    _TimeBlock(
+      start: const TimeOfDay(hour: 9, minute: 0),
+      end: const TimeOfDay(hour: 10, minute: 0),
+    ),
+  ];
+  Set<int> _selectedDays = {1, 2, 3, 4, 5}; // Mon-Fri default
+
+  int get _totalTemplates => _timeBlocks.length * _selectedDays.length;
 
   void _markChanged() {
     if (!_hasChanges) {
-      setState(() {
-        _hasChanges = true;
-      });
+      setState(() => _hasChanges = true);
     }
   }
 
-  Future<void> _selectStartTime() async {
+  // ─── Time block management ──────────────────────────────────────────
+
+  void _addTimeBlock() {
+    final last = _timeBlocks.last;
+    setState(() {
+      _timeBlocks.add(_TimeBlock(
+        start: TimeOfDay(hour: last.end.hour, minute: last.end.minute),
+        end: TimeOfDay(
+          hour: (last.end.hour + 1).clamp(0, 23),
+          minute: last.end.minute,
+        ),
+      ));
+    });
+    _markChanged();
+  }
+
+  void _removeTimeBlock(int index) {
+    if (_timeBlocks.length <= 1) return;
+    setState(() => _timeBlocks.removeAt(index));
+    _markChanged();
+  }
+
+  Future<void> _selectBlockTime(int index, {required bool isStart}) async {
+    final block = _timeBlocks[index];
     final time = await showTimePicker(
       context: context,
-      initialTime: _startTime,
+      initialTime: isStart ? block.start : block.end,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
@@ -61,36 +109,30 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
 
     if (time != null) {
       setState(() {
-        _startTime = time;
+        if (isStart) {
+          _timeBlocks[index].start = time;
+        } else {
+          _timeBlocks[index].end = time;
+        }
       });
       _markChanged();
     }
   }
 
-  Future<void> _selectEndTime() async {
-    final time = await showTimePicker(
-      context: context,
-      initialTime: _endTime,
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: GymGoColors.primary,
-              surface: GymGoColors.surface,
-            ),
-          ),
-          child: child!,
-        );
-      },
-    );
+  // ─── Day selection ──────────────────────────────────────────────────
 
-    if (time != null) {
-      setState(() {
-        _endTime = time;
-      });
-      _markChanged();
-    }
+  void _toggleDay(int day) {
+    setState(() {
+      if (_selectedDays.contains(day)) {
+        _selectedDays.remove(day);
+      } else {
+        _selectedDays.add(day);
+      }
+    });
+    _markChanged();
   }
+
+  // ─── Instructor picker ──────────────────────────────────────────────
 
   Future<void> _selectInstructor() async {
     final instructor = await InstructorPickerSheet.show(
@@ -99,54 +141,88 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
     );
 
     if (instructor != null) {
-      setState(() {
-        _selectedInstructor = instructor;
-      });
+      setState(() => _selectedInstructor = instructor);
       _markChanged();
     }
   }
 
-  Future<void> _create() async {
+  // ─── Validation ─────────────────────────────────────────────────────
+
+  String? _validateTimeBlocks() {
+    for (var i = 0; i < _timeBlocks.length; i++) {
+      final block = _timeBlocks[i];
+      if (block.endMinutes <= block.startMinutes) {
+        return 'Horario ${i + 1}: la hora fin debe ser mayor a la hora inicio';
+      }
+    }
+    // Check overlaps
+    for (var i = 0; i < _timeBlocks.length; i++) {
+      for (var j = i + 1; j < _timeBlocks.length; j++) {
+        if (_timeBlocks[i].overlaps(_timeBlocks[j])) {
+          return 'Los horarios ${i + 1} y ${j + 1} se traslapan';
+        }
+      }
+    }
+    return null;
+  }
+
+  // ─── Create batch ───────────────────────────────────────────────────
+
+  Future<void> _createBatch() async {
     if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _isLoading = true;
-    });
+    if (_selectedDays.isEmpty) {
+      GymGoToast.error(context, 'Selecciona al menos un día');
+      return;
+    }
+
+    final timeError = _validateTimeBlocks();
+    if (timeError != null) {
+      GymGoToast.error(context, timeError);
+      return;
+    }
+
+    setState(() => _isLoading = true);
 
     try {
-      final dto = CreateTemplateDto(
-        name: _nameController.text.trim(),
-        description: _descriptionController.text.trim().isEmpty
-            ? null
-            : _descriptionController.text.trim(),
-        classType: _selectedClassType,
-        dayOfWeek: _selectedDay,
-        startTime:
-            '${_startTime.hour.toString().padLeft(2, '0')}:${_startTime.minute.toString().padLeft(2, '0')}',
-        endTime:
-            '${_endTime.hour.toString().padLeft(2, '0')}:${_endTime.minute.toString().padLeft(2, '0')}',
-        maxCapacity: int.tryParse(_capacityController.text) ?? 20,
-        waitlistEnabled: true,
-        maxWaitlist: 5,
-        instructorId: _selectedInstructor?.id,
-        instructorName: _selectedInstructor?.displayName,
-        location: _locationController.text.trim().isEmpty
-            ? null
-            : _locationController.text.trim(),
-        bookingOpensHours: 168,
-        bookingClosesMinutes: 60,
-        cancellationDeadlineHours: 2,
-        isActive: true,
-      );
+      final dtos = <CreateTemplateDto>[];
 
-      final template =
-          await ref.read(createTemplateProvider.notifier).createTemplate(dto);
+      for (final day in _selectedDays.toList()..sort()) {
+        for (final block in _timeBlocks) {
+          dtos.add(CreateTemplateDto(
+            name: _nameController.text.trim(),
+            classType: _selectedClassType,
+            dayOfWeek: day,
+            startTime: block.startFormatted,
+            endTime: block.endFormatted,
+            maxCapacity: int.tryParse(_capacityController.text) ?? 20,
+            waitlistEnabled: true,
+            maxWaitlist: 5,
+            instructorId: _selectedInstructor?.id,
+            instructorName: _selectedInstructor?.displayName,
+            location: _locationController.text.trim().isEmpty
+                ? null
+                : _locationController.text.trim(),
+            bookingOpensHours: 168,
+            bookingClosesMinutes: 60,
+            cancellationDeadlineHours: 2,
+            isActive: true,
+          ));
+        }
+      }
 
-      if (template != null && mounted) {
-        GymGoToast.success(context, 'Plantilla creada correctamente');
+      final count = await ref
+          .read(batchCreateTemplatesProvider.notifier)
+          .createBatch(dtos);
+
+      if (count != null && mounted) {
+        GymGoToast.success(
+          context,
+          '$count plantilla${count == 1 ? '' : 's'} creada${count == 1 ? '' : 's'}',
+        );
         Navigator.of(context).pop();
       } else if (mounted) {
-        final error = ref.read(createTemplateProvider).error;
+        final error = ref.read(batchCreateTemplatesProvider).error;
         GymGoToast.error(
           context,
           'Error: ${error?.toString() ?? 'Intenta de nuevo'}',
@@ -158,9 +234,7 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
       }
     } finally {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -168,11 +242,12 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _descriptionController.dispose();
     _capacityController.dispose();
     _locationController.dispose();
     super.dispose();
   }
+
+  // ─── Build ──────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -180,7 +255,7 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
       backgroundColor: GymGoColors.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
-        title: const Text('Nueva Plantilla'),
+        title: const Text('Crear Plantillas'),
         centerTitle: true,
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft),
@@ -204,17 +279,17 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Name
+                      // ── Name ──
                       _buildLabel('Nombre', isRequired: true),
                       const SizedBox(height: GymGoSpacing.xs),
                       _buildTextField(
                         controller: _nameController,
-                        hint: 'Ej: Yoga Matutino',
+                        hint: 'Ej: Crossfit Mañana',
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'El nombre es requerido';
                           }
-                          if (value.length < 2) {
+                          if (value.trim().length < 2) {
                             return 'Mínimo 2 caracteres';
                           }
                           return null;
@@ -223,43 +298,54 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
 
                       const SizedBox(height: GymGoSpacing.md),
 
-                      // Description
-                      _buildLabel('Descripción'),
-                      const SizedBox(height: GymGoSpacing.xs),
-                      _buildTextField(
-                        controller: _descriptionController,
-                        hint: 'Descripción de la clase',
-                        maxLines: 3,
-                      ),
-
-                      const SizedBox(height: GymGoSpacing.md),
-
-                      // Class type
+                      // ── Class type ──
                       _buildLabel('Tipo de clase'),
                       const SizedBox(height: GymGoSpacing.xs),
                       _buildClassTypePicker(),
 
-                      const SizedBox(height: GymGoSpacing.md),
+                      const SizedBox(height: GymGoSpacing.lg),
 
-                      // Day of week
-                      _buildLabel('Día', isRequired: true),
+                      // ── Time blocks ──
+                      _buildLabel('Horarios', isRequired: true),
                       const SizedBox(height: GymGoSpacing.xs),
-                      _buildDayPicker(),
+                      ..._buildTimeBlocksList(),
+                      const SizedBox(height: GymGoSpacing.sm),
+                      _buildAddTimeBlockButton(),
 
-                      const SizedBox(height: GymGoSpacing.md),
+                      const SizedBox(height: GymGoSpacing.lg),
 
-                      // Time
+                      // ── Days ──
+                      _buildLabel('Aplicar a', isRequired: true),
+                      const SizedBox(height: GymGoSpacing.xs),
+                      _buildMultiDayPicker(),
+
+                      const SizedBox(height: GymGoSpacing.lg),
+
+                      // ── Capacity + Instructor row ──
                       Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildLabel('Hora inicio', isRequired: true),
+                                _buildLabel('Capacidad', isRequired: true),
                                 const SizedBox(height: GymGoSpacing.xs),
-                                _buildTimePicker(
-                                  time: _startTime,
-                                  onTap: _selectStartTime,
+                                _buildTextField(
+                                  controller: _capacityController,
+                                  hint: '20',
+                                  keyboardType: TextInputType.number,
+                                  prefixIcon: LucideIcons.users,
+                                  validator: (value) {
+                                    if (value == null || value.isEmpty) {
+                                      return 'Requerido';
+                                    }
+                                    final num = int.tryParse(value);
+                                    if (num == null || num < 1) {
+                                      return 'Mínimo 1';
+                                    }
+                                    return null;
+                                  },
                                 ),
                               ],
                             ),
@@ -269,12 +355,9 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildLabel('Hora fin', isRequired: true),
+                                _buildLabel('Instructor'),
                                 const SizedBox(height: GymGoSpacing.xs),
-                                _buildTimePicker(
-                                  time: _endTime,
-                                  onTap: _selectEndTime,
-                                ),
+                                _buildInstructorButton(),
                               ],
                             ),
                           ),
@@ -283,47 +366,7 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
 
                       const SizedBox(height: GymGoSpacing.md),
 
-                      // Capacity
-                      _buildLabel('Capacidad', isRequired: true),
-                      const SizedBox(height: GymGoSpacing.xs),
-                      _buildTextField(
-                        controller: _capacityController,
-                        hint: '20',
-                        keyboardType: TextInputType.number,
-                        prefixIcon: LucideIcons.users,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'La capacidad es requerida';
-                          }
-                          final num = int.tryParse(value);
-                          if (num == null || num < 1) {
-                            return 'Mínimo 1';
-                          }
-                          return null;
-                        },
-                      ),
-
-                      const SizedBox(height: GymGoSpacing.md),
-
-                      // Instructor
-                      _buildLabel('Instructor'),
-                      const SizedBox(height: GymGoSpacing.xs),
-                      if (_selectedInstructor != null)
-                        InstructorChip(
-                          instructor: _selectedInstructor!,
-                          onTap: _selectInstructor,
-                        )
-                      else
-                        _buildEmptyPickerField(
-                          icon: LucideIcons.user,
-                          label: 'Seleccionar instructor',
-                          hint: 'Asignar un instructor',
-                          onTap: _selectInstructor,
-                        ),
-
-                      const SizedBox(height: GymGoSpacing.md),
-
-                      // Location
+                      // ── Location ──
                       _buildLabel('Ubicación'),
                       const SizedBox(height: GymGoSpacing.xs),
                       _buildTextField(
@@ -332,6 +375,12 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
                         prefixIcon: LucideIcons.mapPin,
                       ),
 
+                      const SizedBox(height: GymGoSpacing.lg),
+
+                      // ── Summary ──
+                      if (_selectedDays.isNotEmpty && _timeBlocks.isNotEmpty)
+                        _buildSummary(),
+
                       const SizedBox(height: GymGoSpacing.xl),
                     ],
                   ),
@@ -339,13 +388,15 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
               ),
             ),
 
-            // Bottom create button
+            // Bottom button
             _buildBottomButton(),
           ],
         ),
       ),
     );
   }
+
+  // ─── Reusable builders ──────────────────────────────────────────────
 
   Widget _buildLabel(String text, {bool isRequired = false}) {
     return Row(
@@ -459,7 +510,7 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
   }
 
   void _showClassTypePicker() {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: GymGoColors.background,
       shape: const RoundedRectangleBorder(
@@ -511,12 +562,11 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
                     ),
                   ),
                   trailing: isSelected
-                      ? const Icon(LucideIcons.check, color: GymGoColors.primary)
+                      ? const Icon(LucideIcons.check,
+                          color: GymGoColors.primary)
                       : null,
                   onTap: () {
-                    setState(() {
-                      _selectedClassType = type;
-                    });
+                    setState(() => _selectedClassType = type);
                     _markChanged();
                     Navigator.pop(context);
                   },
@@ -525,56 +575,6 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildDayPicker() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: List.generate(7, (index) {
-          final isSelected = _selectedDay == index;
-          return Padding(
-            padding: const EdgeInsets.only(right: GymGoSpacing.sm),
-            child: InkWell(
-              onTap: () {
-                setState(() {
-                  _selectedDay = index;
-                });
-                _markChanged();
-              },
-              borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
-              child: Container(
-                width: 48,
-                padding: const EdgeInsets.symmetric(
-                  vertical: GymGoSpacing.sm,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected ? GymGoColors.primary : GymGoColors.surface,
-                  borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
-                  border: Border.all(
-                    color:
-                        isSelected ? GymGoColors.primary : GymGoColors.cardBorder,
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      DayOfWeek.getShortName(index),
-                      style: GymGoTypography.labelMedium.copyWith(
-                        color:
-                            isSelected ? Colors.white : GymGoColors.textSecondary,
-                        fontWeight:
-                            isSelected ? FontWeight.w600 : FontWeight.normal,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        }),
       ),
     );
   }
@@ -588,8 +588,8 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
       borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
       child: Container(
         padding: const EdgeInsets.symmetric(
-          horizontal: GymGoSpacing.md,
-          vertical: GymGoSpacing.md,
+          horizontal: GymGoSpacing.sm,
+          vertical: GymGoSpacing.sm,
         ),
         decoration: BoxDecoration(
           color: GymGoColors.surface,
@@ -597,13 +597,102 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
           border: Border.all(color: GymGoColors.cardBorder),
         ),
         child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(LucideIcons.clock, size: 18, color: GymGoColors.textTertiary),
-            const SizedBox(width: GymGoSpacing.sm),
-            Expanded(
-              child: Text(
-                '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
-                style: GymGoTypography.bodyMedium,
+            Icon(LucideIcons.clock, size: 14, color: GymGoColors.textTertiary),
+            const SizedBox(width: GymGoSpacing.xs),
+            Text(
+              '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}',
+              style: GymGoTypography.bodyMedium,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ─── Time blocks list ───────────────────────────────────────────────
+
+  List<Widget> _buildTimeBlocksList() {
+    return List.generate(_timeBlocks.length, (index) {
+      final block = _timeBlocks[index];
+      return Padding(
+        padding: const EdgeInsets.only(bottom: GymGoSpacing.sm),
+        child: GymGoCard(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: GymGoSpacing.md,
+              vertical: GymGoSpacing.sm,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildTimePicker(
+                    time: block.start,
+                    onTap: () => _selectBlockTime(index, isStart: true),
+                  ),
+                ),
+                Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: GymGoSpacing.sm),
+                  child: Text(
+                    '—',
+                    style: GymGoTypography.bodyMedium.copyWith(
+                      color: GymGoColors.textTertiary,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: _buildTimePicker(
+                    time: block.end,
+                    onTap: () => _selectBlockTime(index, isStart: false),
+                  ),
+                ),
+                if (_timeBlocks.length > 1)
+                  IconButton(
+                    icon: Icon(
+                      LucideIcons.trash2,
+                      size: 18,
+                      color: GymGoColors.error.withValues(alpha: 0.7),
+                    ),
+                    onPressed: () => _removeTimeBlock(index),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(
+                      minWidth: 36,
+                      minHeight: 36,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
+  }
+
+  Widget _buildAddTimeBlockButton() {
+    return InkWell(
+      onTap: _addTimeBlock,
+      borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: GymGoSpacing.sm),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
+          border: Border.all(
+            color: GymGoColors.primary.withValues(alpha: 0.3),
+            style: BorderStyle.solid,
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(LucideIcons.plus, size: 16, color: GymGoColors.primary),
+            const SizedBox(width: GymGoSpacing.xs),
+            Text(
+              'Agregar horario',
+              style: GymGoTypography.labelMedium.copyWith(
+                color: GymGoColors.primary,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ],
@@ -612,17 +701,54 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
     );
   }
 
-  Widget _buildEmptyPickerField({
-    required IconData icon,
-    required String label,
-    required String hint,
-    required VoidCallback onTap,
-  }) {
+  // ─── Multi-day picker ───────────────────────────────────────────────
+
+  Widget _buildMultiDayPicker() {
+    return Wrap(
+      spacing: GymGoSpacing.sm,
+      runSpacing: GymGoSpacing.sm,
+      children: List.generate(7, (index) {
+        final isSelected = _selectedDays.contains(index);
+        return InkWell(
+          onTap: () => _toggleDay(index),
+          borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
+          child: Container(
+            width: 48,
+            padding: const EdgeInsets.symmetric(vertical: GymGoSpacing.sm),
+            decoration: BoxDecoration(
+              color: isSelected ? GymGoColors.primary : GymGoColors.surface,
+              borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
+              border: Border.all(
+                color:
+                    isSelected ? GymGoColors.primary : GymGoColors.cardBorder,
+              ),
+            ),
+            child: Center(
+              child: Text(
+                DayOfWeek.getShortName(index),
+                style: GymGoTypography.labelMedium.copyWith(
+                  color: isSelected ? Colors.white : GymGoColors.textSecondary,
+                  fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                ),
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  // ─── Instructor button ──────────────────────────────────────────────
+
+  Widget _buildInstructorButton() {
     return InkWell(
-      onTap: onTap,
+      onTap: _selectInstructor,
       borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
       child: Container(
-        padding: const EdgeInsets.all(GymGoSpacing.md),
+        padding: const EdgeInsets.symmetric(
+          horizontal: GymGoSpacing.md,
+          vertical: GymGoSpacing.sm,
+        ),
         decoration: BoxDecoration(
           color: GymGoColors.surface,
           borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
@@ -630,38 +756,22 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
         ),
         child: Row(
           children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: GymGoColors.primary.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 18, color: GymGoColors.primary),
-            ),
-            const SizedBox(width: GymGoSpacing.md),
+            Icon(LucideIcons.user, size: 18, color: GymGoColors.textTertiary),
+            const SizedBox(width: GymGoSpacing.sm),
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    label,
-                    style: GymGoTypography.bodyMedium.copyWith(
-                      color: GymGoColors.textSecondary,
-                    ),
-                  ),
-                  Text(
-                    hint,
-                    style: GymGoTypography.labelSmall.copyWith(
-                      color: GymGoColors.textTertiary,
-                    ),
-                  ),
-                ],
+              child: Text(
+                _selectedInstructor?.displayName ?? 'Seleccionar',
+                style: GymGoTypography.bodyMedium.copyWith(
+                  color: _selectedInstructor != null
+                      ? null
+                      : GymGoColors.textSecondary,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             Icon(
               LucideIcons.chevronRight,
-              size: 18,
+              size: 14,
               color: GymGoColors.textTertiary,
             ),
           ],
@@ -670,7 +780,43 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
     );
   }
 
+  // ─── Summary ────────────────────────────────────────────────────────
+
+  Widget _buildSummary() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(GymGoSpacing.md),
+      decoration: BoxDecoration(
+        color: GymGoColors.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
+        border: Border.all(
+          color: GymGoColors.primary.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(LucideIcons.info, size: 18, color: GymGoColors.primary),
+          const SizedBox(width: GymGoSpacing.sm),
+          Expanded(
+            child: Text(
+              '${_timeBlocks.length} horario${_timeBlocks.length == 1 ? '' : 's'}'
+              ' × ${_selectedDays.length} día${_selectedDays.length == 1 ? '' : 's'}'
+              ' = $_totalTemplates plantilla${_totalTemplates == 1 ? '' : 's'}',
+              style: GymGoTypography.bodyMedium.copyWith(
+                color: GymGoColors.primary,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Bottom button ──────────────────────────────────────────────────
+
   Widget _buildBottomButton() {
+    final canCreate = _totalTemplates > 0;
     return Container(
       padding: const EdgeInsets.all(GymGoSpacing.screenHorizontal),
       decoration: BoxDecoration(
@@ -688,10 +834,12 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
         child: SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            onPressed: _isLoading ? null : _create,
+            onPressed: (_isLoading || !canCreate) ? null : _createBatch,
             style: ElevatedButton.styleFrom(
               backgroundColor: GymGoColors.primary,
               foregroundColor: Colors.white,
+              disabledBackgroundColor:
+                  GymGoColors.primary.withValues(alpha: 0.3),
               padding: const EdgeInsets.symmetric(vertical: GymGoSpacing.md),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(GymGoSpacing.radiusMd),
@@ -707,7 +855,9 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
                     ),
                   )
                 : Text(
-                    'Crear plantilla',
+                    canCreate
+                        ? 'Generar $_totalTemplates plantilla${_totalTemplates == 1 ? '' : 's'}'
+                        : 'Selecciona días y horarios',
                     style: GymGoTypography.labelLarge.copyWith(
                       color: Colors.white,
                       fontWeight: FontWeight.w600,
@@ -719,8 +869,10 @@ class _CreateTemplateScreenState extends ConsumerState<CreateTemplateScreen> {
     );
   }
 
+  // ─── Discard dialog ─────────────────────────────────────────────────
+
   void _showDiscardDialog() {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: GymGoColors.surface,
